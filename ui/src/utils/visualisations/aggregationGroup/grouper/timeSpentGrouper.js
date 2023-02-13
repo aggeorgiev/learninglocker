@@ -3,17 +3,29 @@ import firstValuesOf from "ui/utils/visualisations/helpers/firstValuesOf";
 // Combination: A/B J E.
 export default ({ projections = {} }) => [
   {
-    "$sort":{
-       "timestamp":1
-    }
-  }, 
-  {
     $group: {
       _id: "$group",
       timestamps: {
         $push: {
           $toDate: "$timestamp",
         },
+      },
+      ...firstValuesOf(projections),
+    },
+  },
+  {
+    $unwind: "$timestamps",
+  },
+  {
+    $sort: {
+      timestamps: 1,
+    },
+  },
+  {
+    $group: {
+      _id: "$_id",
+      timestamps: {
+        $push: "$timestamps",
       },
       ...firstValuesOf(projections),
     },
