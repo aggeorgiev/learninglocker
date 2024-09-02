@@ -2,6 +2,7 @@ import * as blankDashboard from './blankDashboard';
 import * as copyDashboard from './copyDashboard';
 import * as streamStarter from './streamStarter';
 import * as gettingStarted from './gettingStarted';
+import * as IsilaDashboard from './islaDashboard';
 
 /*
  * Sagas
@@ -12,4 +13,5 @@ export const sagas = [
   ...copyDashboard.sagas,
   ...streamStarter.sagas,
   ...gettingStarted.sagas,
+  ...IsilaDashboard.sagas,
 ];

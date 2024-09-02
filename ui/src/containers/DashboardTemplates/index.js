@@ -3,6 +3,7 @@ import { CardList, Panel, DashboardTitle } from 'ui/containers/DashboardTemplate
 import BlankDashboard from './BlankDashboard';
 import StreamStarter from './StreamStarter';
 import GettingStarted from './GettingStarted';
+import IsilaDashboard from './IsilaDashboard';
 
 
 const DashboardTemplates = ({ handleClose }) => (
@@ -26,6 +27,7 @@ const DashboardTemplates = ({ handleClose }) => (
       <BlankDashboard />
       <GettingStarted />
       <StreamStarter />
+      <IsilaDashboard />
     </CardList>
   </Panel>
 );

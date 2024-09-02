@@ -10,7 +10,7 @@ import { activeOrgIdSelector } from 'ui/redux/modules/router';
 import { COPY_DASHBOARD } from 'ui/redux/modules/dashboard/copyDashboard';
 import { withProps, compose, lifecycle, withHandlers, mapProps } from 'recompose';
 import { getVisualisationsFromDashboard } from 'ui/redux/modules/dashboard/selectors';
-import { BLANK_DASHBOARD, STREAM_STARTER } from 'lib/constants/dashboard';
+import { BLANK_DASHBOARD, STREAM_STARTER, ISILA_DASHBOARD } from 'lib/constants/dashboard';
 import Owner from 'ui/containers/Owner';
 import { withModel } from 'ui/utils/hocs';
 import DeleteConfirm from 'ui/containers/DeleteConfirm';
@@ -140,6 +140,9 @@ export class DashboardCard extends Component {
         return blankDashboardIcon;
       }
       if (type === STREAM_STARTER) {
+        return streamStarterIcon;
+      }
+      if (type === ISILA_DASHBOARD) {
         return streamStarterIcon;
       }
       return gettingStartedIcon;
