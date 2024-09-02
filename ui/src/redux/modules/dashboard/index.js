@@ -2,7 +2,7 @@ import * as blankDashboard from './blankDashboard';
 import * as copyDashboard from './copyDashboard';
 import * as streamStarter from './streamStarter';
 import * as gettingStarted from './gettingStarted';
-import * as IsilaDashboard from './islaDashboard';
+import * as IsilaDashboard from './isilaDashboard';
 
 /*
  * Sagas
