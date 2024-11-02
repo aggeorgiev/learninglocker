@@ -16,6 +16,9 @@ import { withModels, withModel } from 'ui/utils/hocs';
 import { loggedInUserId } from 'ui/redux/selectors';
 import { activeOrgIdSelector } from 'ui/redux/modules/router';
 import { EditWrapper } from 'ui/containers/Dashboard/styled';
+import activeOrgSelector from 'ui/redux/modules/activeOrgSelector';
+import { VelocityTransitionGroup } from 'velocity-react';
+import QueryBuilder from 'ui/containers/QueryBuilder';
 
 class Dashboard extends Component {
   static propTypes = {
@@ -24,16 +27,19 @@ class Dashboard extends Component {
     saveModel: PropTypes.func,
     setMetadata: PropTypes.func,
     getMetadata: PropTypes.func,
+    organisationModel: PropTypes.instanceOf(Map),
   };
 
   static defaultProps = {
-    model: new Map()
+    model: new Map(),
+    organisationModel: new Map(),
   };
 
   constructor(props) {
     super(props);
     this.state = {
       widgetModalOpen: false,
+      isFilterShown: false,
     };
   }
 
@@ -46,6 +52,10 @@ class Dashboard extends Component {
 
   toggleWidgetModal = () => {
     this.setState({ widgetModalOpen: !this.state.widgetModalOpen });
+  }
+
+  toggleIsFilterShown = () => {
+    this.setState({ isFilterShown: !this.state.isFilterShown });
   }
 
   onClickAddWidget = () => {
@@ -110,6 +120,10 @@ class Dashboard extends Component {
     });
   };
 
+  onQueryChange = (nextQuery) => {
+    this.props.updateModel({ path: ['dashboardFilter'], value: nextQuery });
+  };
+
   handleFilterChange = (value) => {
     this.props.updateModel({ path: ['filter'], value });
   };
@@ -135,6 +149,18 @@ class Dashboard extends Component {
                 className="btn btn-primary btn-sm">
                 <i className="ion ion-stats-bars" /> Add widget
               </a>
+
+	      <button
+	        className="btn btn-default btn-sm flat-btn flat-white"
+	        title="Dashboard Filter"
+	        onClick={this.toggleIsFilterShown}
+	        style={{
+			backgroundColor: this.state.isFilterShown ? '#F5AB35' : null,
+			color: this.state.isFilterShown ? 'white' : null,
+			marginRight: 0,
+		}}>
+	        <i className="icon ion-funnel" />
+	       </button>
 
               <button
                 className="btn btn-default btn-sm flat-btn flat-white"
@@ -179,6 +205,28 @@ class Dashboard extends Component {
             onClickClose={() => this.toggleWidgetModal()}
             onChangeVisualisation={this.createPopulatedWidget} />
 
+        	<VelocityTransitionGroup
+                  component="div"
+                  leave={{ animation: 'slideUp', duration: 350 }}>
+                  {this.state.isFilterShown &&
+                	  <div className="panel panel-default">
+                           <div className="panel-heading">
+                	     <div className="panel-title">
+                               Dashboard Filter
+                	     </div>
+                	    </div>
+                           <div className="panel-body" style={{ paddingTop: '0px' }}>
+                               <QueryBuilder
+                            	    id="dashboard-filter"
+                                    orgTimezone={this.props.organisationModel.get('timezone', 'UTC')}
+                            	    componentPath={new List([])}
+			            query={model.get('dashboardFilter', new Map({}))}
+			            onChange={this.onQueryChange} />
+                           </div>
+                	  </div>
+                  }
+                </VelocityTransitionGroup>
+
           <DashboardGrid
             widgets={model.get('widgets')}
             onChange={this.onChangeWidgets}
@@ -196,7 +244,8 @@ export default compose(
       isLoading: isLoadingSelector('dashboard', new Map())(state),
       userId: loggedInUserId(state),
       route: routeNodeSelector('organisation.dashboards')(state).route,
-      organisation: activeOrgIdSelector(state)
+      organisation: activeOrgIdSelector(state),
+      organisationModel: activeOrgSelector(state)
     }),
     { navigateTo: actions.navigateTo }
   ),
@@ -248,5 +297,8 @@ export default compose(
       });
     }
   }),
-  mapProps(original => _.pick(original, ['model', 'updateModel', 'saveModel', 'setMetadata', 'getMetadata', 'backToDashboard'])),
+  mapProps(original => { 
+    const pickedProps = _.pick(original, ['model', 'updateModel', 'saveModel', 'setMetadata', 'getMetadata', 'backToDashboard']);
+    return pickedProps;
+  }),
 )(Dashboard);

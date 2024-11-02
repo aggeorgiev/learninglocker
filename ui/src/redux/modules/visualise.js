@@ -82,6 +82,33 @@ const routeNameSelector = (state) => {
 
 const routeFilterSelector = state => get(state, ['router', 'route', 'params', 'filter']);
 
+const dashboardFilterSelector = () => createSelector(
+  [
+    metadataSelector,
+    modelsSelector,
+    dashboardShareableIdSelector,
+    dashboardIdSelector,
+    routeNameSelector,
+    routeFilterSelector
+  ],
+  (metadata, models, routeShareableId, routeDashboardId, routeName, filter) => {
+    const viewingDashboardExternally = (routeName && routeName.indexOf('embedded-dashboard') !== -1);
+    const dashboards = models.get('dashboard', new Map()).filter(d => Map.isMap(d));
+
+    const theDashboard = dashboards.get(routeDashboardId, new Map());
+
+    if (!theDashboard) {
+      // No dashboard found, return an empty filter
+      return [new Map()];
+    }
+
+    const dashboardFilter = theDashboard.get('remoteCache', new Map())
+      .get('dashboardFilter', new Map());
+	  
+    return [dashboardFilter];
+  }
+);
+
  /**
  * gets the visualisation pipeline associated with the provided ID
  * @param  {String}          id  id of visualisation
@@ -166,11 +193,12 @@ const shareableDashboardFilterSelector = () => createSelector(
       )
     );
 
-    // return the filter from that dashboard's shareable model
-    return [theDashboard.get('remoteCache', new Map())
+    const shareableFilter = theDashboard.get('remoteCache', new Map())
       .get('shareable', new List())
       .find(share => share.get('_id') === expandedKey)
-      .get('filter', new Map())];
+      .get('filter', new Map());
+
+    return [shareableFilter];
   }
 );
 
@@ -186,10 +214,11 @@ export const visualisationPipelinesSelector = (
   [
     modelsSchemaIdSelector('visualisation', id),
     shareableDashboardFilterSelector(),
+	dashboardFilterSelector(),
     activeOrgSelector,
     orgTimezoneFromTokenSelector,
   ],
-  (visualisation, filter, organisationModel, orgTimezoneFromToken) => {
+  (visualisation, shareableFilter, dashboardFilter, organisationModel, orgTimezoneFromToken) => {
     if (!visualisation) return new List();
     const type = visualisation.get('type');
     const journey = visualisation.get('journey');
@@ -197,16 +226,21 @@ export const visualisationPipelinesSelector = (
     const benchmarkingEnabled = visualisation.get('benchmarkingEnabled', false);
     const timezone = visualisation.get('timezone') || orgTimezoneFromToken || organisationModel.get('timezone', 'UTC');
     const queries = visualisation.get('filters', new List()).map((vFilter) => {
-      if (!filter) {
-        return vFilter;
+
+      const filterConditions = [];
+      filterConditions.push(vFilter.get('$match', new Map()));
+
+      if (shareableFilter) {
+        filterConditions.push(...shareableFilter);
       }
 
+      if (dashboardFilter) {
+        filterConditions.push(...dashboardFilter);
+      }
+	  
       const out = new Map({
         $match: new Map({
-          $and: new List([
-            vFilter.get('$match', new Map()),
-            ...filter,
-          ])
+          $and: new List(filterConditions)
         })
       });
 

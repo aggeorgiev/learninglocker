@@ -212,6 +212,14 @@ const dashboard = new LLSchema('dashboard', { idAttribute: '_id' }, {
     //   )
     // )
 
+    if (model.has('dashboardFilter')) {
+      model = model.update(
+        'dashboardFilter',
+        fromJS({}),
+        dashboardFilter => JSON.stringify(dashboardFilter.toJS())
+      );
+    }
+
     if (!model.get('shareable')) {
       return model;
     }
@@ -225,6 +233,15 @@ const dashboard = new LLSchema('dashboard', { idAttribute: '_id' }, {
     return model.set('shareable', newShareable);
   },
   reviver: (key, value) => {
+    if (value.has('dashboardFilter')) {
+      try {
+        return value.toMap().set('dashboardFilter', fromJS(JSON.parse(value.get('dashboardFilter', '{}'))));
+      } catch (e) {
+        console.error(e);
+      }
+      return value;
+    }
+
     if (value.has('filter')) {
       try {
         return value.toMap().set('filter', fromJS(JSON.parse(value.get('filter', '{}'))));
