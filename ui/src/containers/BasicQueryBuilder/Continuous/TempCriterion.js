@@ -10,11 +10,6 @@ import { symbolOpToMongoOp } from './helpers';
 
 const DEFAULT_SYMBOL_OP = '<';
 
-/**
- * Temporally Continuous Criterion
- *
- * expected to be used when criteria is empty
- */
 class TempCriterion extends Component {
   static propTypes = {
     timezone: PropTypes.string,
@@ -24,14 +19,16 @@ class TempCriterion extends Component {
   }
 
   state = {
-    operator: DEFAULT_SYMBOL_OP
+    operator: DEFAULT_SYMBOL_OP,
+    weekValue: '0'  // Add state for week input
   }
 
   shouldComponentUpdate = (nextProps, nextState) => !(
     this.props.timezone === nextProps.timezone &&
     this.props.orgTimezone === nextProps.orgTimezone &&
     this.props.section.equals(nextProps.section) &&
-    this.state.operator === nextState.operator
+    this.state.operator === nextState.operator &&
+    this.state.weekValue === nextState.weekValue
   );
 
   getValueQuery = value =>
@@ -40,14 +37,20 @@ class TempCriterion extends Component {
   getKey = () =>
     this.props.section.get('keyPath').join('.');
 
-  /**
-   * @param {string} operator - "<", ">", "<=", or ">="
-   */
-  onChangeOperator = operator => this.setState({ operator });
+  onChangeOperator = operator => {
+    this.setState({ operator });
+    
+    // If switching to 'in week', trigger the criterion change with default value
+    if (operator === 'in week') {
+      const key = this.getKey();
+      this.props.onCriterionChange(new Map({
+        [key]: new Map({
+          $inWeek: 0
+        })
+      }));
+    }
+  };
 
-  /**
-   * @param {*} - argument of onChange in components/Material/DatePicker
-   */
   onChangeDate = (value) => {
     const yyyymmdd = moment(value).format('YYYY-MM-DD');
     const timezone = toTimezone(this.props.timezone || this.props.orgTimezone);
@@ -64,16 +67,49 @@ class TempCriterion extends Component {
     }));
   }
 
+  handleWeekValueChange = (e) => {
+    const value = e.target.value;
+    
+    // Only allow non-negative numbers
+    if (value === '' || (parseInt(value, 10) >= 0 && !isNaN(value))) {
+      this.setState({ weekValue: value });
+      
+      const key = this.getKey();
+      this.props.onCriterionChange(new Map({
+        [key]: new Map({
+          $inWeek: parseInt(value, 10) || 0
+        })
+      }));
+    }
+  }
+
+  renderInput = () => {
+    if (this.state.operator === 'in week') {
+      return (
+        <input
+          type="number"
+          min="0"
+          value={this.state.weekValue}
+          onChange={this.handleWeekValueChange}
+          className="form-control"
+          style={{ width: '100px' }}
+        />
+      );
+    }
+
+    return <DatePicker onChange={this.onChangeDate} />;
+  }
+
   render = () => (
     <CriterionWrapper>
       <CriterionOperator>
         <Operator
-          operators={new Set(['>', '<', '>=', '<='])}
+          operators={new Set(['>', '<', '>=', '<=', 'in week'])}
           operator={this.state.operator}
           onOperatorChange={this.onChangeOperator} />
       </CriterionOperator>
-      <CriterionValue isFullWidth>
-        <DatePicker onChange={this.onChangeDate} />
+      <CriterionValue isFullWidth={this.state.operator !== 'in week'}>
+        {this.renderInput()}
       </CriterionValue>
     </CriterionWrapper>
   )

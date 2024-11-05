@@ -13,19 +13,6 @@ import {
 import Operator from '../Operator';
 import { symbolOpToMongoOp } from './helpers';
 
-/**
- * @param {immutable.Map} section - {
- *                                    getQueryDisplay: (query: immutable.Map) => string,
- *                                    getValueQuery: (value: string) => immutable.Map,
- *                                    keyPath: immutable.List<string>,
- *                                  }
- * @param {immutable.Map} criterion - {
- *                                      $comment: string,
- *                                      [key:string]: immutable.Map,
- *                                    }
- * @param {(criterion: immutable.Map) => void} onCriterionChange
- * @param {() => void} onDeleteCriterion
- */
 class Criterion extends Component {
   static propTypes = {
     timezone: PropTypes.string,
@@ -43,87 +30,67 @@ class Criterion extends Component {
     this.props.criterion.equals(nextProps.criterion)
   );
 
-  /**
-   * @param {immutable.Map} - query e.g. { $dte: '2019-02-03T09:00Z' }
-   * @returns {string} value e.g. '2019-02-03T09:00Z'
-   */
   getQueryDisplay = query => this.props.section.get('getQueryDisplay')(query);
 
-  /**
-   * @param {string} - value e.g. '2019-02-03T09:00Z'
-   * @returns {string} query e.g. { $dte: '2019-02-03T09:00Z' }
-   */
   getValueQuery = value => this.props.section.get('getValueQuery')(value);
 
-  /**
-   * @returns {string} key e.g. '$timestamp'
-   */
-  getKey = () =>
-    this.props.section.get('keyPath').join('.');
+  getKey = () => this.props.section.get('keyPath').join('.');
 
-  /**
-   * @returns {immutable.Map} - query e.g. { $dte: '2019-02-03T09:00Z' }
-   */
-  getSubQuery = () =>
-    this.props.criterion.get(this.getKey());
+  getSubQuery = () => this.props.criterion.get(this.getKey());
 
-  /**
-   * Get date object from query
-   *
-   * @returns {Date}
-   */
-  getDateValue = () =>
-    moment(this.getValue(), 'YYYY-MM-DD').toDate();
+  getDateValue = () => moment(this.getValue(), 'YYYY-MM-DD').toDate();
 
-  /**
-   * Get date time value from query
-   * @returns {string} - "{YYYY-MM-DD}T{HH:mm}Z"
-   */
   getValue = () => {
     const operator = this.getOperator();
     const subQuery = this.getSubQuery();
+    
+    if (operator === 'in week') {
+      return subQuery.get('$inWeek') || 0;
+    }
 
     const mongoOp = symbolOpToMongoOp(operator);
     const queryValue = subQuery.get(mongoOp);
     return this.getQueryDisplay(queryValue);
   };
 
-  /**
-   * Get operator symbol from props or state
-   *
-   * @returns {string} symbol operator: "<", ">", "<=", or ">="
-   */
   getOperator = () => {
     const subQuery = this.getSubQuery();
     if (subQuery.has('$gt')) return '>';
     if (subQuery.has('$lte')) return '<=';
     if (subQuery.has('$gte')) return '>=';
-    return '<';
+    if (subQuery.has('$lt')) return '<';
+    return 'in week';
   };
 
-  /**
-   * @param {string} operator
-   * @param {string} datetimeString - date time format "{YYYY-MM-DD}T{HH:mm}Z"
-   */
-  onChangeCriterion = (operator, datetimeString) => {
+  onChangeCriterion = (operator, value) => {
     const key = this.getKey();
-    const mongoOp = symbolOpToMongoOp(operator);
+    
+    if (operator === 'in week') {
+      this.props.onCriterionChange(new Map({
+        $comment: this.props.criterion.get('$comment'),
+        [key]: new Map({ $inWeek: parseInt(value, 10) }),
+      }));
+      return;
+    }
 
+    const mongoOp = symbolOpToMongoOp(operator);
     this.props.onCriterionChange(new Map({
       $comment: this.props.criterion.get('$comment'),
-      [key]: new Map({ [mongoOp]: this.getValueQuery(datetimeString) }),
+      [key]: new Map({ [mongoOp]: this.getValueQuery(value) }),
     }));
   };
 
-  /**
-   * @param {string} operator - "<", ">", "<=", or ">="
-   */
-  onChangeOperator = operator =>
-    this.onChangeCriterion(operator, this.getValue());
+  onChangeOperator = operator => {
+    if (operator === 'in week') {
+      this.onChangeCriterion(operator, '0');
+    } else {
+      const currentDate = moment().format('YYYY-MM-DD');
+      const timezone = toTimezone(this.props.timezone || this.props.orgTimezone);
+      const z = moment(currentDate).tz(timezone).format('Z');
+      this.onChangeCriterion(operator, `${currentDate}T00:00${z}`);
+    }
+  };
 
-  /**
-   * @param {*} - argument of onChange in components/Material/DatePicker
-   */
   onChangeDate = (value) => {
     const yyyymmdd = moment.parseZone(value).format('YYYY-MM-DD');
     const timezone = toTimezone(this.props.timezone || this.props.orgTimezone);
@@ -131,19 +98,49 @@ class Criterion extends Component {
     this.onChangeCriterion(this.getOperator(), `${yyyymmdd}T00:00${z}`);
   };
 
+  handleNumberChange = (e) => {
+    const value = e.target.value;
+    if (value === '' || (parseInt(value, 10) >= 0 && !isNaN(value))) {
+      this.onChangeCriterion('in week', value);
+    }
+  };
+
+  renderInput = () => {
+    const operator = this.getOperator();
+    
+    if (operator === 'in week') {
+      return (
+        <input
+          type="number"
+          min="0"
+          value={this.getValue()}
+          onChange={this.handleNumberChange}
+          className="form-control"
+          style={{ width: '100px' }}
+        />
+      );
+    }
+
+    return (
+      <DatePicker
+        value={this.getDateValue()}
+        onChange={this.onChangeDate}
+      />
+    );
+  };
+
   render = () => (
     <CriterionWrapper>
       <CriterionOperator>
         <Operator
-          operators={new Set(['>', '<', '>=', '<='])}
+          operators={new Set(['>', '<', '>=', '<=', 'in week'])}
           operator={this.getOperator()}
-          onOperatorChange={this.onChangeOperator} />
+          onOperatorChange={this.onChangeOperator}
+        />
       </CriterionOperator>
 
       <CriterionValue isFullWidth={false}>
-        <DatePicker
-          value={this.getDateValue()}
-          onChange={this.onChangeDate} />
+        {this.renderInput()}
       </CriterionValue>
 
       <CriterionButton
