@@ -75,7 +75,6 @@ function* createIsilaDashboard({ userId, organisationId, dispatch }) {
       title: 'ISILA Dashboard',
       type: 'isilaDashboard',
       isExpanded: true,
-      dashboardFilter: '{}',
       widgets: [
         { x: 0, y: 0, w: 6, h: 8, visualisation: visualisationIds[0] },
         { x: 6, y: 0, w: 3, h: 8, visualisation: visualisationIds[1] },
