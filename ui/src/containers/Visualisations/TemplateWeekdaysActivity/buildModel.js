@@ -19,9 +19,9 @@ const buildInWeekFilter = (label, week) =>  fromJS(
 	});
 
 const filters = [
-  buildInWeekFilter('2 Weeks Before', 80),
-  buildInWeekFilter('1 Week Before', 79),
-  buildInWeekFilter('Current Week', 78),
+  buildInWeekFilter('2 Weeks Before', 2),
+  buildInWeekFilter('1 Week Before', 1),
+  buildInWeekFilter('Current Week', 0),
 ];
 
 
