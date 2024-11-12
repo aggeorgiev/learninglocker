@@ -1,6 +1,6 @@
 import { Map } from 'immutable';
 import { TEMPLATE_ACTIVITY_OVER_TIME } from 'lib/constants/visualise';
-import { LAST_2_MONTHS } from 'ui/utils/constants';
+import { LAST_2_MONTHS, LAST_2_YEARS } from 'ui/utils/constants';
 import { description } from './constants';
 
 /**
@@ -15,6 +15,6 @@ const buildModel = model =>
     .set('axesvalue', new Map({ optionKey: 'statements', searchString: 'Statements' }))
     .set('axesxLabel', 'Date')
     .set('axesyLabel', 'Statements')
-    .set('previewPeriod', LAST_2_MONTHS);
+    .set('previewPeriod', LAST_2_YEARS);
 
 export default buildModel;

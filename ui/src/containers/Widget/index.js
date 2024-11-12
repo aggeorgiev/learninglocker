@@ -7,7 +7,11 @@ import {
   COUNTER,
   PIE,
   TEMPLATE_LAST_7_DAYS_STATEMENTS,
-  TEMPLATE_STREAM_COMMENT_COUNT
+  TEMPLATE_STREAM_COMMENT_COUNT,
+  TEMPLATE_NUMBER_OF_PEOPLE,
+  TEMPLATE_NUMBER_OF_STATEMENTS,
+  TEMPLATE_NUMBER_OF_QUIZ_ATTEMPTS,
+  TEMPLATE_NUMBER_OF_ASSIGNMENT_SUBMISSIONS
 } from 'lib/constants/visualise';
 import { fetchModels } from 'ui/redux/modules/pagination';
 import { updateModel, modelsSchemaIdSelector } from 'ui/redux/modules/models';
@@ -134,7 +138,7 @@ class Widget extends Component {
       </span>
     );
 
-  isCounter = type => type === COUNTER || type === TEMPLATE_LAST_7_DAYS_STATEMENTS || type === TEMPLATE_STREAM_COMMENT_COUNT
+  isCounter = type => type === COUNTER || type === TEMPLATE_LAST_7_DAYS_STATEMENTS || type === TEMPLATE_STREAM_COMMENT_COUNT || TEMPLATE_NUMBER_OF_PEOPLE || TEMPLATE_NUMBER_OF_STATEMENTS || TEMPLATE_NUMBER_OF_QUIZ_ATTEMPTS || TEMPLATE_NUMBER_OF_ASSIGNMENT_SUBMISSIONS
 
   renderMenu = () => {
     const { model, organisationId, visualisation } = this.props;

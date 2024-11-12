@@ -16,7 +16,8 @@ import PIE_IMAGE from './ll-icon-pie-chart.svg';
 import TABLE_AND_STATEMENT_GREY_IMAGE from './ll-icon-table-and-statement-grey.svg';
 import TABLE_GREY_IMAGE from './ll-icon-table-grey.svg';
 import TABLE_IMAGE from './ll-icon-table.svg';
-
+import HEATMAP_IMAGE from './ll-icon-heatmap-chart.svg';
+import HEATMAP_GREY_IMAGE from './ll-icon-heatmap-chart-grey.svg';
 export {
   SESSIONS_GREY_IMAGE,
   SESSIONS_IMAGE,
@@ -36,4 +37,7 @@ export {
   TABLE_AND_STATEMENT_GREY_IMAGE,
   TABLE_GREY_IMAGE,
   TABLE_IMAGE,
+  HEATMAP_IMAGE,
+  HEATMAP_GREY_IMAGE,
 };
+

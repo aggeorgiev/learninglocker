@@ -26,13 +26,11 @@ class Dashboard extends Component {
     updateModel: PropTypes.func,
     saveModel: PropTypes.func,
     setMetadata: PropTypes.func,
-    getMetadata: PropTypes.func,
-    organisationModel: PropTypes.instanceOf(Map),
+    getMetadata: PropTypes.func
   };
 
   static defaultProps = {
-    model: new Map(),
-    organisationModel: new Map(),
+    model: new Map()
   };
 
   constructor(props) {
@@ -218,7 +216,6 @@ class Dashboard extends Component {
                            <div className="panel-body" style={{ paddingTop: '0px' }}>
                                <QueryBuilder
                             	    id="dashboard-filter"
-                                    orgTimezone={this.props.organisationModel.get('timezone', 'UTC')}
                             	    componentPath={new List([])}
 			            query={model.get('dashboardFilter', new Map({}))}
 			            onChange={this.onQueryChange} />
@@ -244,8 +241,7 @@ export default compose(
       isLoading: isLoadingSelector('dashboard', new Map())(state),
       userId: loggedInUserId(state),
       route: routeNodeSelector('organisation.dashboards')(state).route,
-      organisation: activeOrgIdSelector(state),
-      organisationModel: activeOrgSelector(state)
+      organisation: activeOrgIdSelector(state)
     }),
     { navigateTo: actions.navigateTo }
   ),

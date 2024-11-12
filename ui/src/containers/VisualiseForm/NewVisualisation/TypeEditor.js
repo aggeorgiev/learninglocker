@@ -8,6 +8,7 @@ import {
   FREQUENCY,
   COUNTER,
   PIE,
+  HEATMAP,
 } from 'lib/constants/visualise';
 import CustomBarChartCard from 'ui/containers/Visualisations/CustomBarChart/Card';
 import CustomColumnChartCard from 'ui/containers/Visualisations/CustomColumnChart/Card';
@@ -15,6 +16,7 @@ import CustomCounterCard from 'ui/containers/Visualisations/CustomCounter/Card';
 import CustomLineChartCard from 'ui/containers/Visualisations/CustomLineChart/Card';
 import CustomPieChartCard from 'ui/containers/Visualisations/CustomPieChart/Card';
 import CustomXvsYChartCard from 'ui/containers/Visualisations/CustomXvsYChart/Card';
+import CustomHeatmapChartCard from 'ui/containers/Visualisations/CustomHeatmapChart/Card';
 
 const getText = (type) => {
   switch (type) {
@@ -24,6 +26,7 @@ const getText = (type) => {
     case FREQUENCY: return 'Use the Frequency graph to show statements over time in multiple series. Up to 5 series can be shown. Use it to answer the question, how does the activity of X compare to the activity of Y?';
     case COUNTER: return 'Use the Counter visualisation to show a single number (e.g. total number of users)';
     case PIE: return 'Use the Pie chart to show how your statements are divided (e.g. number of statements per course)';
+	  case HEATMAP: return 'Use the Heatmap to visually represent data intensity or frequency, highlighting patterns of learner interactions or activity levels within specific areas or across a grid';
     default: return '';
   }
 };
@@ -41,6 +44,7 @@ const TypeEditor = ({
   const setFREQUENCY = useCallback(() => setTypeState(FREQUENCY), [id]);
   const setCOUNTER = useCallback(() => setTypeState(COUNTER), [id]);
   const setPIE = useCallback(() => setTypeState(PIE), [id]);
+  const setHEATMAP = useCallback(() => setTypeState(HEATMAP), [id]);
 
   const onSubmit = useCallback(
     () => saveModel({
@@ -75,6 +79,10 @@ const TypeEditor = ({
         <CustomPieChartCard
           active={typeState === PIE}
           onClick={setPIE} />
+
+	<CustomHeatmapChartCard
+	  active={typeState === HEATMAP}
+	  onClick={setHEATMAP} />
       </div>
 
       {typeState && (

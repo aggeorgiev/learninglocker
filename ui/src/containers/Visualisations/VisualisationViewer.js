@@ -9,6 +9,7 @@ import {
   FREQUENCY,
   COUNTER,
   PIE,
+  HEATMAP,
   TEMPLATE_ACTIVITY_OVER_TIME,
   TEMPLATE_LAST_7_DAYS_STATEMENTS,
   TEMPLATE_MOST_ACTIVE_PEOPLE,
@@ -16,6 +17,9 @@ import {
   TEMPLATE_MOST_POPULAR_VERBS,
   TEMPLATE_WEEKDAYS_ACTIVITY,
   TEMPLATE_STREAM_INTERACTIONS_VS_ENGAGEMENT,
+  TEMPLATE_STATEMENTS_VS_GRADES,
+  TEMPLATE_GRADES_VS_TIMESPENT,
+  TEMPLATE_QUIZ_GRADES_VS_TIMESPENT,
   TEMPLATE_STREAM_COMMENT_COUNT,
   TEMPLATE_STREAM_LEARNER_INTERACTIONS_BY_DATE_AND_VERB,
   TEMPLATE_STREAM_USER_ENGAGEMENT_LEADERBOARD,
@@ -23,6 +27,16 @@ import {
   TEMPLATE_STREAM_ACTIVITIES_WITH_MOST_COMMENTS,
   TEMPLATE_LEARNING_EXPERIENCE_TYPE,
   TEMPLATE_TIME_SPENT,
+  TEMPLATE_DAYHOURS_ACTIVITY,
+  TEMPLATE_TIMESPENT_QUIZ_ACTIVITY,
+  TEMPLATE_NUMBER_OF_PEOPLE,
+  TEMPLATE_NUMBER_OF_QUIZ_ATTEMPTS,
+  TEMPLATE_NUMBER_OF_ASSIGNMENT_SUBMISSIONS,
+  TEMPLATE_NUMBER_OF_STATEMENTS,
+  TEMPLATE_AVG_QUIZ_GRADE,
+  TEMPLATE_AVG_ASSIGNMENT_GRADE,
+  TEMPLATE_QUIZ_COMPLETION_PROGRESS,
+  TEMPLATE_ASSIGNMENT_COMPLETION_PROGRESS,
 } from 'lib/constants/visualise';
 import { withModel } from 'ui/utils/hocs';
 import CustomBarChartViewer from './CustomBarChart/Viewer';
@@ -31,6 +45,7 @@ import CustomCounterViewer from './CustomCounter/Viewer';
 import CustomLineChartViewer from './CustomLineChart/Viewer';
 import CustomPieChartViewer from './CustomPieChart/Viewer';
 import CustomXvsYChartViewer from './CustomXvsYChart/Viewer';
+import CustomHeatmapChartView from './CustomHeatmapChart/Viewer';
 import TemplateActivityOverTime from './TemplateActivityOverTime/Viewer';
 import TemplateLast7DaysStatements from './TemplateLast7DaysStatements/Viewer';
 import TemplateMostActivePeople from './TemplateMostActivePeople/Viewer';
@@ -45,6 +60,19 @@ import TemplateStreamProportionOfSocialInteractions from './TemplateStreamPropor
 import TemplateStreamActivitiesWithMostComments from './TemplateStreamActivitiesWithMostComments/Viewer';
 import TemplateLearningExperienceType from './TemplateLearningExperienceType/Viewer';
 import TemplateTimeSpent from './TemplateTimeSpent/Viewer';
+import TemplateDayhoursActivity from './TemplateDayhoursActivity/Viewer';
+import TemplateStatementsVsGrades from './TemplateStatementsVsGrades/Viewer';
+import TemplateGradesVsTimeSpent from './TemplateGradesVsTimeSpent/Viewer';
+import TemplateTimeSpentInQuizActivity from './TemplateTimeSpentInQuizActivity/Viewer';
+import TemplateQuizGradesVsTimeSpent from './TemplateQuizGradesVsTimeSpent/Viewer';
+import TemplateNumberOfPeople from './TemplateNumberOfPeople/Viewer';
+import TemplateNumberOfQuizAttempts from './TemplateNumberOfQuizAttempts/Viewer';
+import TemplateNumberOfAssignmentSubmissions from './TemplateNumberOfAssignmentSubmissions/Viewer';
+import TemplateNumberOfStatements from './TemplateNumberOfStatements/Viewer';
+import TemplateAverageQuizGrade from './TemplateAverageQuizGrade/Viewer';
+import TemplateAverageAssignmentGrade from './TemplateAverageAssignmentGrade/Viewer';
+import TemplateQuizCompletionProgress from './TemplateQuizCompletionProgress/Viewer';
+import TemplateAssignmentCompletionProgress from './TemplateAssignmentCompletionProgress/Viewer';
 
 /**
  * @param {immutable.Map} model - visualisation model
@@ -73,6 +101,8 @@ const VisualisationViewer = ({
       return <CustomLineChartViewer visualisationId={visualisationId} showSourceView={showSourceView} />;
     case PIE:
       return <CustomPieChartViewer visualisationId={visualisationId} showSourceView={showSourceView} />;
+    case HEATMAP:
+      return <CustomHeatmapViewer visualisationId={visualisationId} showSourceView={showSourceView} />;
     case TEMPLATE_ACTIVITY_OVER_TIME:
       return <TemplateActivityOverTime visualisationId={visualisationId} showSourceView={showSourceView} />;
     case TEMPLATE_LAST_7_DAYS_STATEMENTS:
@@ -87,6 +117,10 @@ const VisualisationViewer = ({
       return <TemplateWeekdaysActivity visualisationId={visualisationId} showSourceView={showSourceView} />;
     case TEMPLATE_STREAM_INTERACTIONS_VS_ENGAGEMENT:
       return <TemplateStreamInteractionsVsEngagement visualisationId={visualisationId} showSourceView={showSourceView} />;
+    case TEMPLATE_STATEMENTS_VS_GRADES:
+      return <TemplateStatementsVsGrades visualisationId={visualisationId} showSourceView={showSourceView} />;
+    case TEMPLATE_GRADES_VS_TIMESPENT:
+      return <TemplateGradesVsTimeSpent visualisationId={visualisationId} showSourceView={showSourceView} />;
     case TEMPLATE_STREAM_COMMENT_COUNT:
       return <TemplateStreamCommentCount visualisationId={visualisationId} showSourceView={showSourceView} />;
     case TEMPLATE_STREAM_LEARNER_INTERACTIONS_BY_DATE_AND_VERB:
@@ -101,6 +135,28 @@ const VisualisationViewer = ({
       return <TemplateLearningExperienceType visualisationId={visualisationId} showSourceView={showSourceView} />;
     case TEMPLATE_TIME_SPENT:
       return <TemplateTimeSpent visualisationId={visualisationId} showSourceView={showSourceView} />;
+    case TEMPLATE_DAYHOURS_ACTIVITY:
+      return <TemplateDayhoursActivity visualisationId={visualisationId} showSourceView={showSourceView} />;
+    case TEMPLATE_TIMESPENT_QUIZ_ACTIVITY:
+     return <TemplateTimeSpentInQuizActivity visualisationId={visualisationId} showSourceView={showSourceView} />;
+    case TEMPLATE_QUIZ_GRADES_VS_TIMESPENT:
+     return <TemplateQuizGradesVsTimeSpent visualisationId={visualisationId} showSourceView={showSourceView} />;
+    case TEMPLATE_NUMBER_OF_PEOPLE:
+     return <TemplateNumberOfPeople visualisationId={visualisationId} showSourceView={showSourceView} />;
+    case TEMPLATE_NUMBER_OF_QUIZ_ATTEMPTS:
+     return <TemplateNumberOfQuizAttempts visualisationId={visualisationId} showSourceView={showSourceView} />;
+    case TEMPLATE_NUMBER_OF_ASSIGNMENT_SUBMISSIONS:
+     return <TemplateNumberOfAssignmentSubmissions visualisationId={visualisationId} showSourceView={showSourceView} />;
+    case TEMPLATE_NUMBER_OF_STATEMENTS:
+     return <TemplateNumberOfStatements visualisationId={visualisationId} showSourceView={showSourceView} />;
+    case TEMPLATE_AVG_QUIZ_GRADE:
+     return <TemplateAverageQuizGrade visualisationId={visualisationId} showSourceVIew={showSourceView} />;
+    case TEMPLATE_AVG_ASSIGNMENT_GRADE:
+     return <TemplateAverageAssignmentGrade visualisationId={visualisationId} showSourceView={showSourceView} />;
+    case TEMPLATE_QUIZ_COMPLETION_PROGRESS:
+     return <TemplateQuizCompletionProgress visualisationId={visualisationId} showSourceView={showSourceView} />;
+    case TEMPLATE_ASSIGNMENT_COMPLETION_PROGRESS:
+     return <TemplateAssignmentCompletionProgress visualisationId={visualisationId} showSourceView={showSourceView} />;
     default:
       console.error(`VisualisationViewer.js does not support type "${type}"`);
       return `Type "${type}" is not supported`;

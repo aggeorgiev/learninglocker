@@ -8,7 +8,7 @@ import TemplateCard from './TemplateCard';
 
 const enhance = compose(
   withProps({
-    title: 'ISILA Dashboard',
+    title: 'ISILA Starter',
     image: iconImage,
   }),
   connect(

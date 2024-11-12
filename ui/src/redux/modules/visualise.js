@@ -93,18 +93,27 @@ const dashboardFilterSelector = () => createSelector(
   ],
   (metadata, models, routeShareableId, routeDashboardId, routeName, filter) => {
     const viewingDashboardExternally = (routeName && routeName.indexOf('embedded-dashboard') !== -1);
-    const dashboards = models.get('dashboard', new Map()).filter(d => Map.isMap(d));
-
-    const theDashboard = dashboards.get(routeDashboardId, new Map());
-
-    if (!theDashboard) {
-      // No dashboard found, return an empty filter
+    if (viewingDashboardExternally || !Map.isMap(models)) {
+      return [new Map()];
+    }
+    
+    const dashboards = models.get('dashboard', new Map());
+    
+    // Ensure dashboards is a Map and filter for Map items
+    if (!Map.isMap(dashboards)) {
       return [new Map()];
     }
 
-    const dashboardFilter = theDashboard.get('remoteCache', new Map())
-      .get('dashboardFilter', new Map());
-	  
+    const filteredDashboards = dashboards.filter(d => Map.isMap(d));
+    const theDashboard = filteredDashboards.get(routeDashboardId, new Map());
+
+    if (!theDashboard || !Map.isMap(theDashboard)) {
+      return [new Map()];
+    }
+
+    const remoteCache = theDashboard.get('remoteCache', new Map());
+    const dashboardFilter = remoteCache.get('dashboardFilter', new Map());
+
     return [dashboardFilter];
   }
 );
@@ -125,41 +134,50 @@ const shareableDashboardFilterSelector = () => createSelector(
     routeFilterSelector
   ],
   (metadata, models, routeShareableId, routeDashboardId, routeName, filter) => {
-    const viewingDashboardExternally = (routeName && routeName.indexOf('embedded-dashboard') !== -1);
-    const dashboards = models.get('dashboard', new Map()).filter(d => Map.isMap(d));
+    // Type checking and safety
+    if (!Map.isMap(models)) {
+      return [new Map()];
+    }
 
-    // if we are viewing a shared dashboard externally
+    const viewingDashboardExternally = (routeName && routeName.indexOf('embedded-dashboard') !== -1);
+    const dashboards = models.get('dashboard', new Map());
+
+    if (!Map.isMap(dashboards)) {
+      return [new Map()];
+    }
+
+    const filteredDashboards = dashboards.filter(d => Map.isMap(d));
+
     if (viewingDashboardExternally) {
       if (!routeDashboardId) {
         console.warn('Dashboard ID should exist on this route');
         return [new Map()];
       }
 
-      const theDashboard = dashboards.get(routeDashboardId, new Map());
-      if (!theDashboard) {
-        // No dashboard found, return an empty filter
+      const theDashboard = filteredDashboards.get(routeDashboardId, new Map());
+      
+      if (!theDashboard || !Map.isMap(theDashboard)) {
         return [new Map()];
       }
 
+      const remoteCache = theDashboard.get('remoteCache', new Map());
+      const shareables = remoteCache.get('shareable', new List());
+
       if (!routeShareableId) {
-        // must be a legacy link (no shareable ID) - use the first filter
-        const legacyShare = theDashboard.get('remoteCache', new Map()).get('shareable', new List()).first();
-        return [legacyShare.get('filter', new Map())];
+        const legacyShare = shareables.first();
+        return [legacyShare ? legacyShare.get('filter', new Map()) : new Map()];
       }
 
-      // otherwise find the filter on the dasboard's shareables and return it
-      const theShare = theDashboard.get('remoteCache', new Map())
-        .get('shareable', new List())
-        .find(share => share.get('_id') === routeShareableId);
+      const theShare = shareables.find(share => share.get('_id') === routeShareableId);
+      
+      if (!theShare) {
+        return [new Map()];
+      }
 
-      // get paramater filter
-      if (
-        theShare.get('filterMode', OFF) !== OFF && filter
-      ) {
-        let parsedFilter = filter; // either JSON or JWT
+      if (theShare.get('filterMode', OFF) !== OFF && filter) {
+        let parsedFilter = filter;
         if (theShare.get('filterMode') === ANY) {
           try {
-            // if JSON, attempt to parse
             parsedFilter = fromJS(JSON.parse(decodeURI(filter)));
           } catch (err) {
             parsedFilter = fromJS({});
@@ -170,35 +188,36 @@ const shareableDashboardFilterSelector = () => createSelector(
           parsedFilter
         ];
       }
-
+      
       return [theShare.get('filter', new Map())];
     }
 
-    const expandedKey = (metadata || new Map())
-      .get('dashboardSharing', new Map())
-      .findKey(share => share.get('isExpanded', false) === true);
-
-    if (!expandedKey) {
-      // we aren't filtering - return empty filter
+    // Handle expanded key logic
+    const dashboardSharing = (metadata || new Map()).get('dashboardSharing', new Map());
+    
+    if (!Map.isMap(dashboardSharing)) {
       return [new Map()];
     }
 
-    // if we are filtering due to an expanded shareable model
-    // Find the dashboard with the corresponding shareable ID
-    const theDashboard = dashboards.find(dash =>
-      dash.get('remoteCache', new Map())
-      .get('shareable', new List())
-      .find(share =>
-        (share.get('_id') === expandedKey)
-      )
-    );
+    const expandedKey = dashboardSharing.findKey(share => share.get('isExpanded', false) === true);
 
-    const shareableFilter = theDashboard.get('remoteCache', new Map())
-      .get('shareable', new List())
-      .find(share => share.get('_id') === expandedKey)
-      .get('filter', new Map());
+    if (!expandedKey) {
+      return [new Map()];
+    }
 
-    return [shareableFilter];
+    const theDashboard = filteredDashboards.find(dash => {
+      const shareables = dash.getIn(['remoteCache', 'shareable'], new List());
+      return shareables.find(share => share.get('_id') === expandedKey);
+    });
+
+    if (!theDashboard) {
+      return [new Map()];
+    }
+
+    const shareables = theDashboard.getIn(['remoteCache', 'shareable'], new List());
+    const theShare = shareables.find(share => share.get('_id') === expandedKey);
+
+    return [theShare ? theShare.get('filter', new Map()) : new Map()];
   }
 );
 
@@ -209,48 +228,61 @@ const shareableDashboardFilterSelector = () => createSelector(
  */
 export const visualisationPipelinesSelector = (
   id,
-  cb = pipelinesFromQueries // whilst waiting for https://github.com/facebook/jest/issues/3608
-) => createSelector(
-  [
-    modelsSchemaIdSelector('visualisation', id),
-    shareableDashboardFilterSelector(),
-	dashboardFilterSelector(),
-    activeOrgSelector,
-    orgTimezoneFromTokenSelector,
-  ],
-  (visualisation, shareableFilter, dashboardFilter, organisationModel, orgTimezoneFromToken) => {
-    if (!visualisation) return new List();
-    const type = visualisation.get('type');
-    const journey = visualisation.get('journey');
-    const previewPeriod = visualisation.get('previewPeriod');
-    const benchmarkingEnabled = visualisation.get('benchmarkingEnabled', false);
-    const timezone = visualisation.get('timezone') || orgTimezoneFromToken || organisationModel.get('timezone', 'UTC');
-    const queries = visualisation.get('filters', new List()).map((vFilter) => {
+  cb = pipelinesFromQueries
+) => {
+  // First create a selector to determine if viewing externally
+  const isExternalSelector = createSelector(
+    [routeNameSelector],
+    (routeName) => routeName && routeName.indexOf('embedded-dashboard') !== -1
+  );
 
-      const filterConditions = [];
-      filterConditions.push(vFilter.get('$match', new Map()));
+  // Then create the main selector based on whether viewing externally
+  return createSelector(
+    [
+      isExternalSelector,
+      modelsSchemaIdSelector('visualisation', id),
+      shareableDashboardFilterSelector(),
+      activeOrgSelector,
+      orgTimezoneFromTokenSelector,
+      // Only include dashboardFilterSelector in the dependency array when not viewing externally
+      (state) => !isExternalSelector(state) ? dashboardFilterSelector()(state) : null,
+    ],
+    (isExternal, visualisation, shareableFilter, organisationModel, orgTimezoneFromToken, dashboardFilter) => {
+      if (!visualisation) return new List();
+      
+      const type = visualisation.get('type');
+      const journey = visualisation.get('journey');
+      const previewPeriod = visualisation.get('previewPeriod');
+      const benchmarkingEnabled = visualisation.get('benchmarkingEnabled', false);
+      const timezone = visualisation.get('timezone') || orgTimezoneFromToken || organisationModel.get('timezone', 'UTC');
+      
+      const queries = visualisation.get('filters', new List()).map((vFilter) => {
+        const filterConditions = [];
+        filterConditions.push(vFilter.get('$match', new Map()));
 
-      if (shareableFilter) {
-        filterConditions.push(...shareableFilter);
-      }
+        if (shareableFilter) {
+          filterConditions.push(...shareableFilter);
+        }
 
-      if (dashboardFilter) {
-        filterConditions.push(...dashboardFilter);
-      }
-	  
-      const out = new Map({
-        $match: new Map({
-          $and: new List(filterConditions)
-        })
+        // Only include dashboard filter if not external and filter exists
+        if (!isExternal && dashboardFilter) {
+          filterConditions.push(...dashboardFilter);
+        }
+
+        const out = new Map({
+          $match: new Map({
+            $and: new List(filterConditions)
+          })
+        });
+
+        return out;
       });
 
-      return out;
-    });
-
-    const axes = unflattenAxes(visualisation);
-    return cb(queries, axes, type, previewPeriod, journey, timezone, benchmarkingEnabled);
-  }
-);
+      const axes = unflattenAxes(visualisation);
+      return cb(queries, axes, type, previewPeriod, journey, timezone, benchmarkingEnabled);
+    }
+  );
+};
 
 /**
  * Takes a visualisation object and suggests a wizard step to be completed
