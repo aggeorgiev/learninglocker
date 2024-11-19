@@ -4,7 +4,6 @@ import { Map, List } from 'immutable';
 import { Tab } from 'react-toolbox/lib/tabs';
 import Tabs from 'ui/components/Material/Tabs';
 import HeatmapAxesEditor from 'ui/containers/VisualiseForm/StatementsForm/AxesEditor/HeatmapAxesEditor';
-import AddQueryButton from '../components/AddQueryButton';
 import BarChartGroupingLimitForm from '../components/BarChartGroupingLimitForm';
 import DescriptionForm from '../components/DescriptionForm';
 import FiltersForm from '../components/FiltersForm';
@@ -12,6 +11,7 @@ import PreviewPeriodPicker from '../components/PreviewPeriodPicker';
 import StatsTopOrBottomSwitch from '../components/StatsTopOrBottomSwitch';
 import ShowStatsSwitch from '../components/ShowStatsSwitch';
 import SourceViewForm from '../components/SourceViewForm';
+import StackedSwitch from '../components/StackedSwitch';
 import TimezoneForm from '../components/TimezoneForm';
 import Viewer from './Viewer';
 
@@ -19,11 +19,13 @@ import Viewer from './Viewer';
  * @param {immutable.Map} props.model - visualisation model
  * @param {string} props.orgTimezone
  * @param {(args: object) => void} props.updateModel
+ * @param {(args: object) => void} props.setInMetadata
  */
 const Editor = ({
   model,
   orgTimezone,
   updateModel,
+  setInMetadata,
 }) => {
   const id = model.get('_id');
   const [tabIndex, setTabIndex] = useState(0);
@@ -64,6 +66,22 @@ const Editor = ({
     });
   }, [id]);
 
+  const onChangeBarChartGroupingLimit = useCallback((limit) => {
+    updateModel({
+      schema: 'visualisation',
+      id,
+      path: 'barChartGroupingLimit',
+      value: limit,
+    });
+
+    setInMetadata({
+      schema: 'visualisation',
+      id,
+      path: ['activePage'],
+      value: 0,
+    });
+  }, [id]);
+
   const onChangeFilters = useCallback((filters) => {
     updateModel({
       schema: 'visualisation',
@@ -79,22 +97,6 @@ const Editor = ({
       id,
       path: 'timezone',
       value: timezone,
-    });
-  }, [id]);
-
-  const onChangeBarChartGroupingLimit = useCallback((limit) => {
-    updateModel({
-      schema: 'visualisation',
-      id,
-      path: 'barChartGroupingLimit',
-      value: limit,
-    });
-
-    setInMetadata({
-      schema: 'visualisation',
-      id,
-      path: ['activePage'],
-      value: 0,
     });
   }, [id]);
 
@@ -118,7 +120,8 @@ const Editor = ({
 
           <Tabs index={tabIndex} onChange={setTabIndex}>
             <Tab key="axes" label="Axes">
-              <HeatmapAxesEditor model={model} />
+              <HeatmapAxesEditor
+                model={model} />
             </Tab>
 
             <Tab key="series" label="Series">
@@ -126,7 +129,7 @@ const Editor = ({
               <FiltersForm
                 visualisationId={id}
                 filters={model.get('filters', new List())}
-                canEditLabel
+                canEditLabel={false}
                 timezone={model.get('timezone')}
                 orgTimezone={orgTimezone}
                 onChange={onChangeFilters} />
@@ -152,7 +155,7 @@ const Editor = ({
               <BarChartGroupingLimitForm
                 barChartGroupingLimit={model.get('barChartGroupingLimit')}
                 onChange={onChangeBarChartGroupingLimit} />
-                  
+
               <TimezoneForm
                 visualisationId={id}
                 timezone={model.get('timezone', null)}
@@ -185,6 +188,7 @@ Editor.propTypes = {
   model: PropTypes.instanceOf(Map).isRequired,
   orgTimezone: PropTypes.string.isRequired,
   updateModel: PropTypes.func.isRequired,
+  setInMetadata: PropTypes.func.isRequired,
 };
 
 export default Editor;

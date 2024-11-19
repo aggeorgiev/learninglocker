@@ -6,6 +6,7 @@ export const VALUE_OP_CASE = {
   uniqueModifier: 4,
   uniqueStatementModifier: 5,
   timeSpent: 6,
+  weeklyStatementCount: 7
 };
 
 export const getValueOpCase = ({
@@ -33,6 +34,8 @@ export const getValueOpCase = ({
       );
     case 'timeSpent':
       return VALUE_OP_CASE.timeSpent;
+    case 'weeklyCount':
+      return VALUE_OP_CASE.weeklyStatementCount;
     default: return VALUE_OP_CASE.other;
   }
 };

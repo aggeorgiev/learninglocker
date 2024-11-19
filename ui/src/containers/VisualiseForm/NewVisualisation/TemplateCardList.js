@@ -27,6 +27,7 @@ import TemplateAverageQuizGradeCard from 'ui/containers/Visualisations/TemplateA
 import TemplateAverageAssignmentGradeCard from 'ui/containers/Visualisations/TemplateAverageAssignmentGrade/Card';
 import TemplateQuizCompletionProgressCard from 'ui/containers/Visualisations/TemplateQuizCompletionProgress/Card';
 import TemplateAssignmentCompletionProgressCard from 'ui/containers/Visualisations/TemplateAssignmentCompletionProgress/Card';
+import TemplateActivityLevelByWeekCard from 'ui/containers/Visualisations/TemplateActivityLevelByWeek/Card';
 
 const TemplateCardList = ({ model, saveModel }) => (
   <CardList id="new-visualisation-templates">
@@ -135,6 +136,10 @@ const TemplateCardList = ({ model, saveModel }) => (
 	saveModel={saveModel} />
 
      <TemplateAssignmentCompletionProgressCard
+	model={model}
+	saveModel={saveModel} />
+
+     <TemplateActivityLevelByWeekCard
 	model={model}
 	saveModel={saveModel} />
 

@@ -1,8 +1,20 @@
-import React from 'react';
+import React, { Component } from 'react';
+import { connect } from 'react-redux';
+import { getMetadataSelector, setInMetadata } from 'ui/redux/modules/metadata';
 import { AutoSizer } from 'react-virtualized';
 import { compose } from 'recompose';
+import { Button } from 'react-toolbox/lib/button';
 import NoData from 'ui/components/Graphs/NoData';
 import { wrapLabel } from 'ui/utils/defaultTitles';
+import {
+  ScatterChart,
+  XAxis,
+  YAxis,
+  Tooltip,
+  Scatter,
+  CartesianGrid,
+  Legend
+} from 'recharts';
 import {
   getResultsData,
   getShortModel,
@@ -10,6 +22,7 @@ import {
   hiddenSeriesState
 } from './Chart';
 import {
+  Buttons,
   Chart as StyledChart,
   BarContainer,
   XAxis as StyledXAxis,
@@ -18,196 +31,419 @@ import {
   ChartWrapper
 } from './styled';
 
-// Utility functions
-export const getColorIntensity = (value, minValue, maxValue) => {
-  const normalized = (value - minValue) / (maxValue - minValue);
-  return Math.floor(normalized * 255);
-};
+const enhance = compose(
+  hiddenSeriesState,
+  connect((state, { model }) =>
+    ({
+      activePage: getMetadataSelector({
+        schema: 'visualisation',
+        id: model.get('_id')
+      })(state).get('activePage', 0)
+    }), { setInMetadata })
+);
 
-export const getHeatmapColor = (value, minValue, maxValue, baseColor = [0, 0, 255]) => {
-  const intensity = getColorIntensity(value, minValue, maxValue);
-  return `rgb(${255 - intensity}, ${255 - intensity}, 255)`;
-};
+class HeatmapChart extends Component {
+  static DEFAULT_AXES_LABELS = {
+    xLabel: 'Day of Week',
+    yLabel: 'Person'
+  };
 
-export const findMinMax = data => {
-  let min = Infinity;
-  let max = -Infinity;
-
-  // Handle Immutable.js data
-  if (data && typeof data.toJS === 'function') {
-    data = data.toJS();
+  constructor(props) {
+    super(props);
+    this.transformData = this.transformData.bind(this);
+    this.formatWeekday = this.formatWeekday.bind(this);
+    this.CustomShape = this.CustomShape.bind(this);
+    this.CustomTooltip = this.CustomTooltip.bind(this);
+    this.renderHeatmap = this.renderHeatmap.bind(this);
+    this.findMinMax = this.findMinMax.bind(this);
+    this.getAxisLabel = this.getAxisLabel.bind(this);
+    this.renderChart = this.renderChart.bind(this);
+    this.displayPrevPage = this.displayPrevPage.bind(this);
+    this.displayNextPage = this.displayNextPage.bind(this);
   }
 
-  // Handle object format
-  if (data && !Array.isArray(data) && typeof data === 'object') {
-    data = Object.values(data);
+  getColorIntensity(value, minValue, maxValue) {
+    if (maxValue === minValue) return 0.5;
+    const normalized = (value - minValue) / (maxValue - minValue);
+    return Math.max(0, Math.min(1, normalized));
+  }
+  
+  getHeatmapColor(value, minValue, maxValue) {
+    const intensity = this.getColorIntensity(value, minValue, maxValue);
+    
+    // Define your two colors
+    const lowColor = { r: 253, g: 238, b: 215 };   // Blue
+    const highColor = { r: 245, g: 171, b: 54 };  // Orange
+    
+    // Interpolate between the two colors
+    return `rgb(
+      ${Math.round(lowColor.r + (highColor.r - lowColor.r) * intensity)},
+      ${Math.round(lowColor.g + (highColor.g - lowColor.g) * intensity)},
+      ${Math.round(lowColor.b + (highColor.b - lowColor.b) * intensity)}
+    )`;
   }
 
-  // Ensure we have an array to work with
-  if (!Array.isArray(data)) {
-    return [0, 0]; // Return default values if data is invalid
+  transformData(rawData) {
+    const normalizeWeekday = (weekday) => {
+      return ((weekday - 1) % 7);
+    };
+
+    const groupedData = Object.entries(rawData).reduce((acc, [key, value]) => {
+      const { _id, model, count } = value;
+      const { group, weekday } = _id;
+      
+      const normalizedWeekday = normalizeWeekday(weekday);
+      
+      if (!acc[group]) {
+        acc[group] = {
+          group,
+          model,
+          weekdays: Array(7).fill(null).map((_, index) => ({
+            weekday: index,
+            count: 0
+          }))
+        };
+      }
+      
+      acc[group].weekdays[normalizedWeekday] = {
+        weekday: normalizedWeekday,
+        count
+      };
+      
+      return acc;
+    }, {});
+
+    Object.values(groupedData).forEach(group => {
+      group.weekdays.sort((a, b) => a.weekday - b.weekday);
+    });
+
+    return Object.values(groupedData);
   }
 
-  data.forEach(row => {
-    if (typeof row === 'object' && row !== null) {
-      Object.entries(row).forEach(([key, value]) => {
-        // Handle numeric strings by converting them
-        const numValue = Number(value);
-        
-        // Only process if it's a Series key or value property
-        if ((key.startsWith('Series') || key === 'value') && 
-            !isNaN(numValue) && 
-            value !== null && 
-            value !== undefined && 
-            value !== '') {
-          min = Math.min(min, numValue);
-          max = Math.max(max, numValue);
-        }
-      });
+  formatWeekday(value) {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return days[value];
+  }
+
+  CustomShape(props) {
+    const { 
+      x, 
+      y, 
+      payload, 
+      minValue, 
+      maxValue,
+      chartHeight,
+      chartWidth,
+      totalRows,
+      totalColumns 
+    } = props;
+    
+    const value = payload.count;
+    const backgroundColor = this.getHeatmapColor(value, minValue, maxValue);
+    
+    const availableHeight = chartHeight - 60;
+    const availableWidth = chartWidth - 150;
+
+	
+    
+    const rowHeight = availableHeight / totalRows;
+    const height = rowHeight;
+    const width = (availableWidth / totalColumns);
+    
+    const minSize = 10;
+    const finalHeight = Math.max(height, minSize);
+    const finalWidth = Math.max(width, minSize);
+	
+    const adjustedY = (totalRows - payload.rowIndex) * rowHeight - (rowHeight / 2);
+
+    return (
+      <g>
+        <rect
+          x={x - finalWidth/2}
+          y={adjustedY - finalHeight/2}
+          width={finalWidth}
+          height={finalHeight}
+          fill={backgroundColor}
+        />
+      </g>
+    );
+  }
+
+  findMinMax(data) {
+    let min = Infinity;
+    let max = -Infinity;
+
+    Object.values(data).forEach(item => {
+      const count = item.count;
+      if (typeof count === 'number') {
+        min = Math.min(min, count);
+        max = Math.max(max, count);
+      }
+    });
+
+    return min === Infinity || max === -Infinity ? [0, 0] : [min, max];
+  }
+
+  CustomTooltip({ active, payload }) {
+    if (active && payload && payload.length) {
+      const { model, count, weekday } = payload[0].payload;
+      const weekdayLabel = this.formatWeekday(weekday);
+
+      return (
+        <div className="custom-tooltip" style={{ backgroundColor: '#fff', padding: '10px', border: '1px solid #ccc' }}>
+          <p>{`Person: ${model}`}</p>
+          <p>{`Weekday: ${weekdayLabel}`}</p>
+          <p>{`Count: ${count}`}</p>
+        </div>
+      );
     }
-  });
-
-  // Handle case where no valid numbers were found
-  if (min === Infinity || max === -Infinity) {
-    return [0, 0];
+    return null;
   }
 
-  return [min, max];
-};
+  displayPrevPage() {
+    this.props.setInMetadata({
+      schema: 'visualisation',
+      id: this.props.model.get('_id'),
+      path: ['activePage'],
+      value: this.props.activePage - 1
+    });
+  }
 
-const DEFAULT_AXES_LABELS = {
-  xLabel: 'X-Axis',
-  yLabel: 'Y-Axis'
-};
+  displayNextPage() {
+    this.props.setInMetadata({
+      schema: 'visualisation',
+      id: this.props.model.get('_id'),
+      path: ['activePage'],
+      value: this.props.activePage + 1
+    });
+  }
 
-const renderHeatmap = (data, labels, model) => ({ width, height }) => {
-  const cellWidth = width / (labels.size + 1);
-  const cellHeight = height / data.size;
-  const [minValue, maxValue] = findMinMax(data.toJS());
+  getRowsPerPage(model) {
+    return model.get('barChartGroupingLimit') || 10;
+  }
 
-  return (
-    <div className="w-full h-full relative">
-      {/* Y-Axis Labels */}
-      <div className="absolute left-0 top-0 w-24">
-        {data.map((row, i) => (
-          <div
-            key={`y-${i}`}
-            className="text-sm truncate"
-            style={{
-              height: `${cellHeight}px`,
-              lineHeight: `${cellHeight}px`
+  getDataChunk(transformedData, model, page) {
+    const rowsPerPage = this.getRowsPerPage(model);
+    const startIndex = rowsPerPage * page;
+    return transformedData.slice(startIndex, startIndex + rowsPerPage);
+  }
+
+  getPages(transformedData, model) {
+    const rowsPerPage = this.getRowsPerPage(model);
+    return Math.ceil(transformedData.length / rowsPerPage);
+  }
+
+  hasPrevPage(pages, page) {
+    return pages > 0 && page > 0;
+  }
+
+  hasNextPage(pages, page) {
+    return pages > 0 && page < pages - 1;
+  }
+
+  renderPrevButton() {
+    return (
+      <span style={{ alignSelf: 'flex-start', marginLeft: 10 }}>
+        <Button
+          raised
+          label="Previous"
+          onMouseUp={this.displayPrevPage}
+          icon={<i className="icon ion-chevron-left" />} />
+      </span>
+    );
+  }
+
+  renderNextButton() {
+    return (
+      <span style={{ marginRight: 10, marginLeft: 'auto' }}>
+        <Button
+          raised
+          label="Next"
+          onMouseUp={this.displayNextPage}
+          icon={<i className="icon ion-chevron-right" />} />
+      </span>
+    );
+  }
+
+  renderLegend() {
+    const { results } = this.props;
+    const list = results.toJS();
+    const [minValue, maxValue] = this.findMinMax(list[0][0]);
+
+    const legendPayload = [
+      { value: 'Low', color: this.getHeatmapColor(minValue, minValue, maxValue) },
+      { value: 'High', color: this.getHeatmapColor(maxValue, minValue, maxValue) }
+    ];
+
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center',
+        gap: '20px'
+      }}>
+        {legendPayload.map((item, index) => (
+          <div 
+            key={index} 
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center',
+              gap: '5px'
             }}
           >
-            {getShortModel(data)(row.get('cellId'))}
+            <div 
+              style={{
+                width: '20px',
+                height: '20px',
+                backgroundColor: item.color,
+                border: '1px solid #ddd'
+              }}
+            />
+            <span>{item.value}</span>
           </div>
         ))}
       </div>
+    );
+  }
 
-      {/* Heatmap Grid */}
-      <div className="ml-24">
-        <div className="flex mb-2">
-          {labels.map((label, i) => (
-            <div
-              key={`x-${i}`}
-              className="text-sm text-center truncate"
-              style={{ width: `${cellWidth}px` }}
-            >
-              {label}
-            </div>
-          ))}
+  renderHeatmap(data) {
+    return ({ width, height }) => {
+      const list = data.toJS();
+      const transformedData = this.transformData(list[0][0]);
+      const [minValue, maxValue] = this.findMinMax(list[0][0]);
+
+      // Get paged data
+      const pagedData = this.getDataChunk(transformedData, this.props.model, this.props.activePage);
+      const uniqueModels = [...new Set(pagedData.map(item => item.model))];
+      const totalColumns = 7;
+
+      const chartData = uniqueModels.flatMap((model, rowIndex) => {
+        const modelData = pagedData.find(group => group.model === model);
+        return modelData ? modelData.weekdays.map(day => ({
+          group: modelData.group,
+          model: model,
+          weekday: day.weekday,
+          count: day.count,
+          rowIndex: rowIndex
+        })) : [];
+      });
+
+      const totalRows = uniqueModels.length;
+
+      return (
+        <ScatterChart 
+          width={width} 
+          height={height}
+          margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
+        >
+          <CartesianGrid horizontal={false} vertical={false} />
+          <XAxis
+            type="number"
+            dataKey="weekday"
+            domain={[0, 6]}
+            tickCount={7}
+            tickFormatter={this.formatWeekday}
+            interval={0}
+            padding={{ left: 40, right: 40 }}
+            tick={{ fontSize: 12 }}
+            axisLine={false}
+          />
+          <YAxis
+            type="category"
+            dataKey="model"
+            ticks={uniqueModels}
+            domain={uniqueModels}
+            axisLine={false}
+            width={150}
+          />
+          <Tooltip content={this.CustomTooltip} />
+          <Scatter
+            data={chartData}
+            shape={(props) => (
+              <this.CustomShape
+                {...props}
+                minValue={minValue}
+                maxValue={maxValue}
+                chartHeight={height}
+                chartWidth={width}
+                totalRows={totalRows}
+                totalColumns={totalColumns}
+              />
+            )}
+          />
+        </ScatterChart>
+      );
+    };
+  }
+
+  getAxisLabel(axesLabels, key, model, defaultKey, fallback) {
+    if (axesLabels && axesLabels[key]) {
+      return axesLabels[key];
+    }
+    if (model && model.getIn) {
+      return model.getIn([defaultKey, 'searchString']) || fallback;
+    }
+    return fallback;
+  }
+
+  renderChart(component, axesLabels = {}, chartWrapperFn, model) {
+    const { activePage, results } = this.props;
+    const list = results.toJS();
+    const transformedData = this.transformData(list[0][0]);
+    const pages = this.getPages(transformedData, model);
+
+    return (
+      <StyledChart>
+        <Buttons>
+          {this.hasPrevPage(pages, activePage) && this.renderPrevButton()}
+          {this.hasNextPage(pages, activePage) && this.renderNextButton()}
+        </Buttons>
+        <div 
+          className={'clearfix'} 
+          style={{ 
+            marginTop: '10px', 
+            marginBottom: '10px', 
+            textAlign: 'center' 
+          }}
+        >
+          {this.renderLegend()}
         </div>
-
-        {data.map((row, rowIndex) => (
-          <div key={`row-${rowIndex}`} className="flex">
-            {labels.map((_, colIndex) => {
-              const value = row.get(`Series ${colIndex + 1}`, 0);
-              return (
-                <div
-                  key={`cell-${rowIndex}-${colIndex}`}
-                  className="border border-gray-200"
-                  style={{
-                    width: `${cellWidth}px`,
-                    height: `${cellHeight}px`,
-                    backgroundColor: getHeatmapColor(value, minValue, maxValue),
-                  }}
-                >
-                  <div className="w-full h-full flex items-center justify-center text-xs">
-                    {value}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const getAxisLabel = (axesLabels, key, model, defaultKey, fallback) => {
-  if (axesLabels && axesLabels[key]) {
-    return axesLabels[key];
+        <BarContainer>
+          <StyledYAxis>
+            {wrapLabel(this.getAxisLabel(axesLabels, 'yLabel', model, 'axesvalue', HeatmapChart.DEFAULT_AXES_LABELS.yLabel))}
+          </StyledYAxis>
+          <ChartWrapper>
+            {chartWrapperFn(component)}
+          </ChartWrapper>
+        </BarContainer>
+        <XAxisLabel>
+          <StyledXAxis>
+            {wrapLabel(this.getAxisLabel(axesLabels, 'xLabel', model, 'axesgroup', HeatmapChart.DEFAULT_AXES_LABELS.xLabel))}
+          </StyledXAxis>
+        </XAxisLabel>
+      </StyledChart>
+    );
   }
-  if (model && model.getIn) {
-    return model.getIn([defaultKey, 'searchString']) || fallback;
+
+  render() {
+    const {
+      results,
+      axesLabels = HeatmapChart.DEFAULT_AXES_LABELS,
+      chartWrapperFn = component => (<AutoSizer>{component}</AutoSizer>),
+      model
+    } = this.props;
+
+    if (!hasData(results)) {
+      return <NoData />;
+    }
+
+    return this.renderChart(
+      this.renderHeatmap(results),
+      axesLabels,
+      chartWrapperFn,
+      model
+    );
   }
-  return fallback;
-};
+}
 
-const renderChart = (component, axesLabels = {}, chartWrapperFn, model) => (
-  <StyledChart>
-    <BarContainer>
-      <StyledYAxis>
-      {wrapLabel(getAxisLabel(axesLabels, 'yLabel', model, 'axesvalue', DEFAULT_AXES_LABELS.yLabel))}
-      </StyledYAxis>
-      <ChartWrapper>
-        {chartWrapperFn(component)}
-      </ChartWrapper>
-    </BarContainer>
-    <XAxisLabel>
-      <StyledXAxis>
-       {wrapLabel(getAxisLabel(axesLabels, 'xLabel', model, 'axesgroup', DEFAULT_AXES_LABELS.xLabel))}
-      </StyledXAxis>
-    </XAxisLabel>
-  </StyledChart>
-);
-
-const sortData = data => data.sortBy(e => e.get('id'));
-
-const getSortedData = results => labels =>
-  sortData(getResultsData(results)(labels));
-
-const renderChartResults = (labels, data) => 
-  renderHeatmap(data, labels);
-
-const renderResults = results => labels => axesLabels => chartWrapperFn => model =>
-  renderChart(
-    renderChartResults(labels, getSortedData(results)(labels)),
-    axesLabels,
-    chartWrapperFn,
-    model
-  );
-
-const HeatmapChart = compose(hiddenSeriesState)((
-  {
-    results,
-    labels,
-    axesLabels = DEFAULT_AXES_LABELS,
-    chartWrapperFn = component => (<AutoSizer>{component}</AutoSizer>),
-    model
-  }) => (
-    hasData(results)
-      ? renderResults(results)(labels)(axesLabels)(chartWrapperFn)(model)
-      : <NoData />
-  )
-);
-
-// Export both the component and testing utilities
-export default HeatmapChart;
-
-// Export testing utilities
-export const testing = {
-  getColorIntensity,
-  getHeatmapColor,
-  findMinMax
-};
+export default enhance(HeatmapChart);

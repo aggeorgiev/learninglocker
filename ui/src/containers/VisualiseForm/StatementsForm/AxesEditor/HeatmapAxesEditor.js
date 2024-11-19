@@ -14,15 +14,6 @@ export class HeatmapAxesEditor extends BaseAxesEditor {
     updateModel: PropTypes.func
   };
 
-  // Custom color handlers
-  handleBaseColorChange = (event) => {
-    const value = event.target.value;
-    // Validate hex color format
-    if (/^#[0-9A-F]{6}$/i.test(value)) {
-      this.changeAxes('baseColor', value);
-    }
-  };
-
   render = () => (
     <div>
       {/* Row Configuration (Y-Axis) */}
@@ -65,37 +56,6 @@ export class HeatmapAxesEditor extends BaseAxesEditor {
             operator={this.getAxesValue('operator')}
             changeValue={this.changeAxes.bind(this, 'value')}
             changeOperator={this.changeAxes.bind(this, 'operator')} />
-        </div>
-      </div>
-
-      {/* Color Configuration */}
-      <div className="form-group">
-        <label htmlFor="colorConfig" className="clearfix">Heat Color</label>
-        <div className="form-group">
-          <DebounceInput
-            id="baseColor"
-            className="form-control"
-            type="color"
-            value={this.getAxesValue('baseColor', '#0000FF')} // Default blue as per HeatmapChart
-            onChange={this.handleBaseColorChange}
-            title="Choose base color for heatmap intensity" />
-          <small className="form-text text-muted">
-            The intensity will automatically scale between white and this color based on values
-          </small>
-        </div>
-      </div>
-
-      {/* Display Configuration */}
-      <div className="form-group">
-        <label htmlFor="displayConfig" className="clearfix">Display Options</label>
-        <div className="checkbox">
-          <label>
-            <input
-              type="checkbox"
-              checked={this.getAxesValue('showValues', true)}
-              onChange={(e) => this.changeAxes('showValues', e.target.checked)} />
-            Show cell values
-          </label>
         </div>
       </div>
     </div>

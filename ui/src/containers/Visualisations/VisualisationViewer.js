@@ -37,6 +37,7 @@ import {
   TEMPLATE_AVG_ASSIGNMENT_GRADE,
   TEMPLATE_QUIZ_COMPLETION_PROGRESS,
   TEMPLATE_ASSIGNMENT_COMPLETION_PROGRESS,
+  TEMPLATE_ACTIVITY_LEVEL_BY_WEEK
 } from 'lib/constants/visualise';
 import { withModel } from 'ui/utils/hocs';
 import CustomBarChartViewer from './CustomBarChart/Viewer';
@@ -45,7 +46,7 @@ import CustomCounterViewer from './CustomCounter/Viewer';
 import CustomLineChartViewer from './CustomLineChart/Viewer';
 import CustomPieChartViewer from './CustomPieChart/Viewer';
 import CustomXvsYChartViewer from './CustomXvsYChart/Viewer';
-import CustomHeatmapChartView from './CustomHeatmapChart/Viewer';
+import CustomHeatmapChartViewer from './CustomHeatmapChart/Viewer';
 import TemplateActivityOverTime from './TemplateActivityOverTime/Viewer';
 import TemplateLast7DaysStatements from './TemplateLast7DaysStatements/Viewer';
 import TemplateMostActivePeople from './TemplateMostActivePeople/Viewer';
@@ -73,6 +74,7 @@ import TemplateAverageQuizGrade from './TemplateAverageQuizGrade/Viewer';
 import TemplateAverageAssignmentGrade from './TemplateAverageAssignmentGrade/Viewer';
 import TemplateQuizCompletionProgress from './TemplateQuizCompletionProgress/Viewer';
 import TemplateAssignmentCompletionProgress from './TemplateAssignmentCompletionProgress/Viewer';
+import TemplateActivityLevelByWeek from './TemplateActivityLevelByWeek/Viewer';
 
 /**
  * @param {immutable.Map} model - visualisation model
@@ -102,7 +104,7 @@ const VisualisationViewer = ({
     case PIE:
       return <CustomPieChartViewer visualisationId={visualisationId} showSourceView={showSourceView} />;
     case HEATMAP:
-      return <CustomHeatmapViewer visualisationId={visualisationId} showSourceView={showSourceView} />;
+      return <CustomHeatmapChartViewer visualisationId={visualisationId} showSourceView={showSourceView} />;
     case TEMPLATE_ACTIVITY_OVER_TIME:
       return <TemplateActivityOverTime visualisationId={visualisationId} showSourceView={showSourceView} />;
     case TEMPLATE_LAST_7_DAYS_STATEMENTS:
@@ -157,6 +159,8 @@ const VisualisationViewer = ({
      return <TemplateQuizCompletionProgress visualisationId={visualisationId} showSourceView={showSourceView} />;
     case TEMPLATE_ASSIGNMENT_COMPLETION_PROGRESS:
      return <TemplateAssignmentCompletionProgress visualisationId={visualisationId} showSourceView={showSourceView} />;
+    case TEMPLATE_ACTIVITY_LEVEL_BY_WEEK:
+     return <TemplateActivityLevelByWeek visualisationId={visualisationId} showSourceView={showSourceView} />;
     default:
       console.error(`VisualisationViewer.js does not support type "${type}"`);
       return `Type "${type}" is not supported`;

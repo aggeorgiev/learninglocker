@@ -33,7 +33,8 @@ import {
   TEMPLATE_AVG_QUIZ_GRADE,
   TEMPLATE_AVG_ASSIGNMENT_GRADE,
   TEMPLATE_QUIZ_COMPLETION_PROGRESS,
-  TEMPLATE_ASSIGNMENT_COMPLETION_PROGRESS
+  TEMPLATE_ASSIGNMENT_COMPLETION_PROGRESS,
+  TEMPLATE_ACTIVITY_LEVEL_BY_WEEK
 } from 'lib/constants/visualise';
 
 const createOptionModel = (searchString, optionKey) => new Map({ optionKey, searchString });
@@ -46,8 +47,14 @@ export const UNIQUENESS_OPS = [
 
 export const TIME_OPS = ['timeSpent'];
 
+export const WEEKLY_OPS = ['weeklyCount'];
+
 const TIME_OPERATOR_OPTS = new OrderedMap({
   timeSpent: 'Total time spent',
+});
+
+const WEEKLY_OPERATOR_OPTS = new OrderedMap({
+  weeklyCount: 'Total weekly number of',
 });
 
 const LINE_OPERATOR_OPTS = new OrderedMap({
@@ -62,7 +69,7 @@ export const OPERATOR_OPTS = LINE_OPERATOR_OPTS.concat(new OrderedMap({
   uniqueAverage: 'Average unique number of',
   uniqueMax: 'Max unique number of',
   uniqueMin: 'Min unique number of',
-})).concat(TIME_OPERATOR_OPTS);
+})).concat(TIME_OPERATOR_OPTS).concat(WEEKLY_OPERATOR_OPTS);
 
 export const VALUE_OPTS = createOptionModels({
   scaled: 'Scaled results',
@@ -72,13 +79,15 @@ export const VALUE_OPTS = createOptionModels({
 
 export const TIME_VALUE_OPTS = createOptionModels({ statements: "Statements" });
 
+export const WEEKLY_VALUE_OPTS = createOptionModels({ statements: "Statements" });
+
 export const UNIQUENESS_VALUE_OPTS = createOptionModels({
   statements: 'Statements',
   people: 'People',
   activities: 'Activities',
   verb: 'Verbs',
   type: 'Activity types',
-}).concat(VALUE_OPTS).concat(TIME_VALUE_OPTS);
+}).concat(VALUE_OPTS).concat(TIME_VALUE_OPTS).concat(WEEKLY_VALUE_OPTS);
 
 export const GROUP_OPTS = createOptionModels({
   date: 'Date',
@@ -104,7 +113,6 @@ export const getTypeOpts = (type) => {
     case LEADERBOARD:
     case COUNTER:
     case PIE:
-    case HEATMAP:
     case TEMPLATE_LAST_7_DAYS_STATEMENTS:
     case TEMPLATE_MOST_ACTIVE_PEOPLE:
     case TEMPLATE_MOST_POPULAR_ACTIVITIES:
@@ -133,6 +141,9 @@ export const getTypeOpts = (type) => {
       return OPERATOR_OPTS;
     case TEMPLATE_TIME_SPENT:
       return TIME_OPERATOR_OPTS;
+    case HEATMAP:
+    case TEMPLATE_ACTIVITY_LEVEL_BY_WEEK:
+      return WEEKLY_OPERATOR_OPTS;
     default:
       return new OrderedMap();
   }

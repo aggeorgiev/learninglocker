@@ -8,6 +8,7 @@ import uniqueModifierCounter from './uniqueModifierCounter';
 import uniqueTotalCounter from './uniqueTotalCounter';
 import uniqueTotalStatementCounter from './uniqueTotalStatementCounter';
 import valueCounter from './valueCounter';
+import weeklyStatementCounter from './weeklyStatementCounter';
 
 const getCountPipeline = ({ operatorType, valueOpCase, projections }) => {
   switch (valueOpCase) {
@@ -20,6 +21,8 @@ const getCountPipeline = ({ operatorType, valueOpCase, projections }) => {
     case VALUE_OP_CASE.uniqueStatementModifier:
     case VALUE_OP_CASE.uniqueModifier:
       return uniqueModifierCounter({ operator: getOperator(operatorType), projections });
+    case VALUE_OP_CASE.weeklyStatementCount:
+      return weeklyStatementCounter({ projections });
     default:
       return [];
   }
@@ -34,6 +37,7 @@ const getProjections = ({ valueType, groupType, valueOpCase, timezone }) => {
     case VALUE_OP_CASE.uniqueModifier:
       return { group: group(groupType, timezone) };
     case VALUE_OP_CASE.uniqueStatementCount:
+    case VALUE_OP_CASE.weeklyStatementCount:
     default:
       return {};
   }
@@ -48,6 +52,7 @@ const getExistsMatch = ({ valueType, groupType, valueOpCase }) => {
     case VALUE_OP_CASE.uniqueModifier:
       return keyExists(groupType);
     case VALUE_OP_CASE.uniqueStatementCount:
+    case VALUE_OP_CASE.weeklyStatementCount:
     default:
       return {};
   }

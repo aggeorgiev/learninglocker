@@ -7,9 +7,11 @@ import {
   getTypeOpts,
   UNIQUENESS_OPS,
   TIME_OPS,
+  WEEKLY_OPS,
   VALUE_OPTS,
   UNIQUENESS_VALUE_OPTS,
   TIME_VALUE_OPTS,
+  WEEKLY_VALUE_OPTS,
 } from 'ui/utils/visualisations/localOptions';
 
 export default class CountEditor extends Component {
@@ -47,6 +49,9 @@ export default class CountEditor extends Component {
   isTimeOp = (op) =>
     this.includes(op)(TIME_OPS)
 
+  isWeeklyOp = (op) =>
+    this.includes(op)(WEEKLY_OPS)
+
   getOperatorOptions = () =>
     getTypeOpts(this.props.type).filter(this.includes(this.state.operatorInput))
 
@@ -58,6 +63,7 @@ export default class CountEditor extends Component {
     const operatorOptions = this.getOperatorOptions();
     const hasUniquenessOp = this.isUniquenessOp(operator);
     const hasTimeOp = this.isTimeOp(operator);
+    const hasWeeklyOp = this.isWeeklyOp(operator);
 
     return (
       <div>
@@ -71,7 +77,7 @@ export default class CountEditor extends Component {
           onChange={this.changeOperator} />
         <CacheKeysAutoComplete
           selectedOption={value}
-          localOptions={hasTimeOp ? TIME_VALUE_OPTS : hasUniquenessOp ? UNIQUENESS_VALUE_OPTS : VALUE_OPTS}
+          localOptions={hasWeeklyOp ? WEEKLY_VALUE_OPTS : hasTimeOp ? TIME_VALUE_OPTS : hasUniquenessOp ? UNIQUENESS_VALUE_OPTS : VALUE_OPTS}
           filter={new Map(hasUniquenessOp ? {} : {
             valueType: new Map({ $eq: 'Number' })
           })}

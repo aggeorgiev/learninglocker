@@ -34,7 +34,8 @@ import {
   TEMPLATE_AVG_QUIZ_GRADE,
   TEMPLATE_AVG_ASSIGNMENT_GRADE,
   TEMPLATE_QUIZ_COMPLETION_PROGRESS,
-  TEMPLATE_ASSIGNMENT_COMPLETION_PROGRESS
+  TEMPLATE_ASSIGNMENT_COMPLETION_PROGRESS,
+  TEMPLATE_ACTIVITY_LEVEL_BY_WEEK
 } from 'lib/constants/visualise';
 import VisualiseIcon from 'ui/components/VisualiseIcon';
 import { OPERATOR_OPTS } from 'ui/utils/visualisations/localOptions';
@@ -101,6 +102,7 @@ export const createDefaultTitle = (model) => {
     case TEMPLATE_STREAM_USER_ENGAGEMENT_LEADERBOARD:
     case TEMPLATE_STREAM_ACTIVITIES_WITH_MOST_COMMENTS:
     case TEMPLATE_TIME_SPENT:
+    case TEMPLATE_ACTIVITY_LEVEL_BY_WEEK:
       return addYX(select(axg), select(axv) || select(ayV) || 'Time');
     case XVSY:
     case TEMPLATE_STREAM_INTERACTIONS_VS_ENGAGEMENT:

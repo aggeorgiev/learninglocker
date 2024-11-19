@@ -33,7 +33,8 @@ import {
   TEMPLATE_AVG_QUIZ_GRADE,
   TEMPLATE_AVG_ASSIGNMENT_GRADE,
   TEMPLATE_QUIZ_COMPLETION_PROGRESS,
-  TEMPLATE_ASSIGNMENT_COMPLETION_PROGRESS
+  TEMPLATE_ASSIGNMENT_COMPLETION_PROGRESS,
+  TEMPLATE_ACTIVITY_LEVEL_BY_WEEK,
 } from 'lib/constants/visualise';
 import CustomBarChart from 'ui/containers/Visualisations/CustomBarChart';
 import CustomColumnChart from 'ui/containers/Visualisations/CustomColumnChart';
@@ -71,6 +72,7 @@ import TemplateAverageQuizGrade from 'ui/containers/Visualisations/TemplateAvera
 import TemplateAverageAssignmentGrade from 'ui/containers/Visualisations/TemplateAverageAssignmentGrade';
 import TemplateQuizCompletionProgress from 'ui/containers/Visualisations/TemplateQuizCompletionProgress';
 import TemplateAssignmentCompletionProgress from 'ui/containers/Visualisations/TemplateAssignmentCompletionProgress';
+import TemplateActivityLevelByWeek from 'ui/containers/Visualisations/TemplateActivityLevelByWeek';
 
 const VisualiseForm = ({ model, orgTimezone }) => {
   if (model.has('type')) {
@@ -143,6 +145,8 @@ const VisualiseForm = ({ model, orgTimezone }) => {
 	 return <TemplateQuizCompletionProgress model={model} orgTimezone={orgTimezone} />;
       case TEMPLATE_ASSIGNMENT_COMPLETION_PROGRESS:
 	 return <TemplateAssignmentCompletionProgress model={model} orgTimezone={orgTimezone} />;
+      case TEMPLATE_ACTIVITY_LEVEL_BY_WEEK:
+         return <TemplateActivityLevelByWeek model={model} orgTimezone={orgTimezone} />;
       default:
         console.error(`VisualiseForm/index.js does not support type ${model.get('type')}`);
         return `type "${model.get('type')}" is not supported.`;

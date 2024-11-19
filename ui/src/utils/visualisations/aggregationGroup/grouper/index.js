@@ -15,6 +15,7 @@ import uniqueTotalGrouper from './uniqueTotalGrouper';
 import uniqueTotalStatementGrouper from './uniqueTotalStatementGrouper';
 import valueGrouper from './valueGrouper';
 import timeSpentGrouper from "./timeSpentGrouper";
+import weeklyStatementGrouper from './weeklyStatementGrouper';
 
 const getGroupPipeline = ({ operatorType, groupType, valueOpCase, projections, timezone }) => {
   switch (valueOpCase) {
@@ -30,6 +31,8 @@ const getGroupPipeline = ({ operatorType, groupType, valueOpCase, projections, t
       return uniqueModifierGrouper({ operator: getOperator(operatorType), groupType, projections, timezone });
     case VALUE_OP_CASE.timeSpent:
       return timeSpentGrouper({ projections });
+    case VALUE_OP_CASE.weeklyStatementCount:
+      return weeklyStatementGrouper({ projections });
     default:
       return [];
   }
@@ -43,6 +46,7 @@ const getProjections = ({ valueType, groupType, valueOpCase, timezone }) => {
         group: group(groupType, timezone),
         value: value(valueType),
         model: model(groupType, timezone),
+	timestamp: '$timestamp',
       };
     case VALUE_OP_CASE.uniqueStatementModifier:
       return {
@@ -61,12 +65,19 @@ const getProjections = ({ valueType, groupType, valueOpCase, timezone }) => {
       return {
         group: group(groupType, timezone),
         model: model(groupType, timezone),
+	timestamp: '$timestamp',
       };
     case VALUE_OP_CASE.timeSpent:
       return {
         group: group(groupType, timezone),
         timestamp: "$statement.timestamp",
         model: model(groupType, timezone),
+      };
+    case VALUE_OP_CASE.weeklyStatementCount:
+      return {
+        group: group(groupType, timezone),
+	model: model(groupType, timezone),
+	timestamp: '$timestamp',
       };
     default:
       return {};
@@ -83,6 +94,7 @@ const getExistsMatch = ({ valueType, groupType, valueOpCase }) => {
       return keyExists(valueType);
     case VALUE_OP_CASE.uniqueStatementCount:
     case VALUE_OP_CASE.timeSpent:
+    case VALUE_OP_CASE.weeklyStatementCount:
       return keyExists(groupType);
     case VALUE_OP_CASE.uniqueStatementModifier:
     default:

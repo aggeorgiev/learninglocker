@@ -18,6 +18,7 @@ import buildTemplateAverageQuizGrade from 'ui/containers/Visualisations/Template
 import buildTemplateAverageAssignmentGrade from 'ui/containers/Visualisations/TemplateAverageAssignmentGrade/buildModel';
 import buildTemplateQuizCompletionProgress from 'ui/containers/Visualisations/TemplateQuizCompletionProgress/buildModel';
 import buildTemplateAssignmentCompletionProgress from 'ui/containers/Visualisations/TemplateAssignmentCompletionProgress/buildModel';
+import buildTemplateActivityLevelByWeek from 'ui/containers/Visualisations/TemplateActivityLevelByWeek/buildModel';
 
 import { addModel } from '../models';
 
@@ -84,6 +85,12 @@ const createVisualisations = async ({ dispatch, userId }) => {
 	  props: buildTemplateActivityOverTime(new Map({ owner: userId })),
 	  isExpanded: false,
 	})),
+	
+	dispatch(addModel({
+	  schema: 'visualisation',
+	  props: buildTemplateActivityLevelByWeek(new Map({ orner: userId })),
+	  isExpanded: false,
+	})),
   
   	dispatch(addModel({
 	  schema: 'visualisation',
@@ -127,7 +134,6 @@ const createVisualisations = async ({ dispatch, userId }) => {
 	  isExpanded: false,
 	})),
 
-
   ]);
 
   return results.map(r => r.model.get('_id'));
@@ -155,19 +161,19 @@ function* createIsilaDashboard({ userId, organisationId, dispatch }) {
 		{ x: 0, y: 8, w: 6, h: 6, visualisation: visualisationIds[6] },
         { x: 6, y: 8, w: 6, h: 6, visualisation: visualisationIds[7] },
 		
-        { x: 0, y: 14, w: 6, h: 9, visualisation: visualisationIds[8] },
-        { x: 6, y: 14, w: 6, h: 9, visualisation: visualisationIds[9] },
+        { x: 0, y: 14, w: 12, h: 9, visualisation: visualisationIds[8] },
 		
-        { x: 0, y: 23, w: 6, h: 9, visualisation: visualisationIds[10] },
-        { x: 6, y: 23, w: 6, h: 9, visualisation: visualisationIds[11] },
+        { x: 0, y: 23, w: 6, h: 9, visualisation: visualisationIds[9] },
+        { x: 6, y: 23, w: 6, h: 9, visualisation: visualisationIds[10] },
 		
-        { x: 0, y: 32, w: 6, h: 9, visualisation: visualisationIds[12] },
-        { x: 6, y: 32, w: 6, h: 9, visualisation: visualisationIds[13] },
+        { x: 0, y: 32, w: 6, h: 9, visualisation: visualisationIds[11] },
+        { x: 6, y: 32, w: 6, h: 9, visualisation: visualisationIds[12] },
 		
-        { x: 0, y: 41, w: 6, h: 9, visualisation: visualisationIds[14] },
-        { x: 6, y: 41, w: 6, h: 9, visualisation: visualisationIds[15] },
-
+        { x: 0, y: 41, w: 6, h: 9, visualisation: visualisationIds[13] },
+        { x: 6, y: 41, w: 6, h: 9, visualisation: visualisationIds[14] },
 		
+        { x: 0, y: 50, w: 6, h: 9, visualisation: visualisationIds[15] },
+        { x: 6, y: 50, w: 6, h: 9, visualisation: visualisationIds[16] },
 
       ],
     },

@@ -34,7 +34,8 @@ import {
   TEMPLATE_AVG_QUIZ_GRADE,
   TEMPLATE_AVG_ASSIGNMENT_GRADE,
   TEMPLATE_QUIZ_COMPLETION_PROGRESS,
-  TEMPLATE_ASSIGNMENT_COMPLETION_PROGRESS
+  TEMPLATE_ASSIGNMENT_COMPLETION_PROGRESS,
+  TEMPLATE_ACTIVITY_LEVEL_BY_WEEK
 } from 'lib/constants/visualise';
 import { update$dteTimezone } from 'lib/helpers/update$dteTimezone';
 import { periodToDate } from 'ui/utils/dates';
@@ -94,6 +95,7 @@ export default memoize((args = new Map()) => {
     case TEMPLATE_TIMESPENT_QUIZ_ACTIVITY:
     case TEMPLATE_QUIZ_COMPLETION_PROGRESS:
     case TEMPLATE_ASSIGNMENT_COMPLETION_PROGRESS:
+    case TEMPLATE_ACTIVITY_LEVEL_BY_WEEK:
       return aggregateChart(preReqs, axes, timezone);
     case XVSY:
     case TEMPLATE_STREAM_INTERACTIONS_VS_ENGAGEMENT:
