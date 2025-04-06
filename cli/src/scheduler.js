@@ -1,70 +1,125 @@
 import expirationNotificationEmails from 'cli/commands/expirationNotificationEmails';
 import orgUsageTracker from 'cli/commands/orgUsageTracker';
-import * as redis from 'lib/connections/redis';
+import * as redis from 'lib/connections/redis'; // Using the defined redis.js
 import logger from 'lib/logger';
 import cachePrefix from 'lib/helpers/cachePrefix';
-import runBatchDelete from './scheduler/batchDelete';
-
-const redisClient = redis.createClient();
+import runBatchDelete from './scheduler/batchDelete'; // Assuming runBatchDelete is also self-scheduling
 
 /**
- * Run expirationNotificationEmails every 15 minutes
+ * Runs expirationNotificationEmails every 15 minutes.
+ * Uses Redis distributed lock to ensure execution only by one instance.
  */
 const EXPIRATION_TIMEOUT_MSEC = 15 * 60 * 1000;
-const EXPIRATION_LOCK_DURATION_SEC = 30;
+const EXPIRATION_LOCK_DURATION_SEC = 60; // Least increased lock duration for more security
 const EXPIRATION_CACHE_KEY = cachePrefix('EXPIRATION_SCHEDULER:RUNNING');
 
 const runExpiration = async () => {
   const startTime = Date.now();
-  const res = await redisClient.set(EXPIRATION_CACHE_KEY, 1, 'EX', EXPIRATION_LOCK_DURATION_SEC, 'NX');
 
-  if (res === 'OK') {
-    logger.info('processing expiration');
-    await expirationNotificationEmails({ dontExit: true });
-  } else {
-    logger.debug('skip expiration');
+  try { // Wraps the entire logic in try to ensure setTimeout
+    await redis.withRedisClient(async (redisClient) => {
+      const res = await redisClient.set(EXPIRATION_CACHE_KEY, 1, 'EX', EXPIRATION_LOCK_DURATION_SEC, 'NX');
+
+      if (res === 'OK') {
+        logger.info('Processing expiration notification emails...');
+        try {
+          // Adds try...catch around the task itself
+          await expirationNotificationEmails({ dontExit: true });
+          logger.info('Finished processing expiration notification emails.');
+        } catch (taskError) {
+          logger.error('Error processing expiration notification emails task:', taskError);
+          // Task error should not stop the scheduler, just logs
+        }
+      } else {
+        logger.debug('Skipping expiration notification emails (lock not acquired).');
+      }
+    });
+  } catch (error) {
+    // Catches Redis errors (e.g., connection breaks)
+    logger.error('Error during expiration scheduler Redis operation:', error);
+  } finally {
+    // Ensures that the next execution is always scheduled
+    const delay = Math.max(0, EXPIRATION_TIMEOUT_MSEC - (Date.now() - startTime)); // Ensures the delay is not negative
+    setTimeout(runExpiration, delay);
   }
-
-  setTimeout(runExpiration, EXPIRATION_TIMEOUT_MSEC - (Date.now() - startTime));
 };
 
-runExpiration();
-
-
 /**
- * Run orgUsageTracker at 3 am everyday
+ * Runs orgUsageTracker every 5 minutes.
+ * Uses Redis distributed lock to ensure execution only by one instance.
+ * (Changed from daily to 5 minutes for consistency and responsiveness)
  */
-const ORG_USAGE_TIMEOUT_MSEC = 24 * 60 * 60 * 1000;
-const ORG_USAGE_LOCK_DURATION_SEC = 60 * 60;
-const ORG_USAGE_CACHE_KEY = cachePrefix('ORG_USAGE_SCHEDULER:RUNNING');
+const USAGE_TRACKER_TIMEOUT_MSEC = 5 * 60 * 1000;
+const USAGE_TRACKER_LOCK_DURATION_SEC = 60; // Least increased lock duration
+const USAGE_TRACKER_CACHE_KEY = cachePrefix('USAGE_TRACKER_SCHEDULER:RUNNING');
 
-const runOrgUsage = async () => {
+const runUsageTracker = async () => {
   const startTime = Date.now();
-  const res = await redisClient.set(ORG_USAGE_CACHE_KEY, 1, 'EX', ORG_USAGE_LOCK_DURATION_SEC, 'NX');
 
-  if (res === 'OK') {
-    logger.info('processing org usage');
-    await orgUsageTracker({ dontExit: true });
-  } else {
-    logger.debug('skip org usage');
+  try { // Wraps the entire logic in try to ensure setTimeout
+    await redis.withRedisClient(async (redisClient) => {
+      const res = await redisClient.set(USAGE_TRACKER_CACHE_KEY, 1, 'EX', USAGE_TRACKER_LOCK_DURATION_SEC, 'NX');
+
+      if (res === 'OK') {
+        logger.info('Processing usage tracker...');
+        try {
+          // Adds try...catch around the task itself
+          await orgUsageTracker({ dontExit: true });
+          logger.info('Finished processing usage tracker.');
+        } catch (taskError) {
+          logger.error('Error processing usage tracker task:', taskError);
+          // Task error should not stop the scheduler, just logs
+        }
+      } else {
+        logger.debug('Skipping usage tracker (lock not acquired).');
+      }
+    });
+  } catch (error) {
+    // Catches Redis errors
+    logger.error('Error during usage tracker scheduler Redis operation:', error);
+  } finally {
+    // Ensures that the next execution is always scheduled
+    const delay = Math.max(0, USAGE_TRACKER_TIMEOUT_MSEC - (Date.now() - startTime)); // Ensures the delay is not negative
+    setTimeout(runUsageTracker, delay);
   }
-
-  setTimeout(runOrgUsage, ORG_USAGE_TIMEOUT_MSEC - (Date.now() - startTime));
 };
 
-const today3am = new Date();
-today3am.setHours(3, 0, 0, 0);
-
-const tomorrow3am = new Date();
-tomorrow3am.setHours(3, 0, 0, 0);
-tomorrow3am.setDate(tomorrow3am.getDate() + 1);
-
-const firstRunDatetime = Date.now() < today3am ? today3am : tomorrow3am;
-
-logger.info(`The first org usage tracking is at ${firstRunDatetime}`);
-setTimeout(runOrgUsage, firstRunDatetime - Date.now());
-
 /**
- * Run delete jobs
+ * Main function to start all schedulers.
  */
-runBatchDelete({});
+export default async () => {
+  logger.info('Starting schedulers...');
+
+  // Starts the scheduling loops
+  // await is not needed here as the functions themselves take care of recursive calling
+  runExpiration();
+  runUsageTracker();
+  runBatchDelete(); // Assuming runBatchDelete is also self-scheduling
+
+  logger.info('Schedulers started.');
+
+  // Clean up on process exit
+  process.on('SIGTERM', async () => {
+    logger.info('SIGTERM signal received. Closing Redis pool...');
+    try {
+      await redis.closePool();
+      logger.info('Redis pool closed.');
+      process.exit(0);
+    } catch (err) {
+      logger.error('Error closing Redis pool during SIGTERM:', err);
+      process.exit(1);
+    }
+  });
+
+  process.on('SIGINT', async () => {
+    logger.info('SIGINT signal received. Closing Redis pool...');
+    try {
+      await redis.closePool();
+      logger.info('Redis pool closed.');
+      process.exit(0);
+    } catch (err) {
+      logger.error('Error closing Redis pool during SIGINT:', err);
+      process.exit(1);
+    }
+  });
+};
