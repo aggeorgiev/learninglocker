@@ -26,7 +26,8 @@ class Dashboard extends Component {
     updateModel: PropTypes.func,
     saveModel: PropTypes.func,
     setMetadata: PropTypes.func,
-    getMetadata: PropTypes.func
+    getMetadata: PropTypes.func,
+	organisationModel: PropTypes.instanceOf(Map)
   };
 
   static defaultProps = {
@@ -216,9 +217,10 @@ class Dashboard extends Component {
                            <div className="panel-body" style={{ paddingTop: '0px' }}>
                                <QueryBuilder
                             	    id="dashboard-filter"
+                            	    orgTimezone={this.props.organisationModel.get('timezone', 'UTC')}
                             	    componentPath={new List([])}
-			            query={model.get('dashboardFilter', new Map({}))}
-			            onChange={this.onQueryChange} />
+                            	    query={model.get('dashboardFilter', new Map({}))}
+                            	    onChange={this.onQueryChange} />
                            </div>
                 	  </div>
                   }
@@ -241,7 +243,8 @@ export default compose(
       isLoading: isLoadingSelector('dashboard', new Map())(state),
       userId: loggedInUserId(state),
       route: routeNodeSelector('organisation.dashboards')(state).route,
-      organisation: activeOrgIdSelector(state)
+	  organisation: activeOrgIdSelector(state),
+      organisationModel: activeOrgSelector(state)
     }),
     { navigateTo: actions.navigateTo }
   ),
@@ -294,7 +297,7 @@ export default compose(
     }
   }),
   mapProps(original => { 
-    const pickedProps = _.pick(original, ['model', 'updateModel', 'saveModel', 'setMetadata', 'getMetadata', 'backToDashboard']);
+    const pickedProps = _.pick(original, ['model', 'updateModel', 'saveModel', 'setMetadata', 'getMetadata', 'backToDashboard', 'organisationModel']);
     return pickedProps;
   }),
 )(Dashboard);
