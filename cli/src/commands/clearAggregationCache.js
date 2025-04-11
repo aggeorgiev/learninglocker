@@ -1,83 +1,67 @@
 import logger from 'lib/logger';
-import * as redis from 'lib/connections/redis'; // Using the defined redis.js
+import { withRedisClient } from 'lib/connections/redis';
 import cachePrefix from 'lib/helpers/cachePrefix';
-// Note: The 'async' library is no longer needed as we use native async/await and pipeline.
+import async from 'async';
+import { promisify } from 'util';
+
+// Convert async.each to Promise-based version
+const asyncEachPromise = promisify(async.each);
 
 /**
- * Asynchronously clears all Redis keys starting with a given prefix.
- * Uses SCAN instead of KEYS for production safety.
- * Uses Pipelining for efficient deletion.
- *
- * @param {string} prefix - The prefix of keys to delete (will append '*' at the end).
- * @returns {Promise<number>} Promise that resolves with the count of deleted keys.
+ * Clears cache keys with a given prefix using the Redis connection pool
+ * @param {string} prefix - The prefix to match for deletion
+ * @returns {Promise<{total: number}>} - Result object with total keys deleted
  */
 const clearPrefix = async (prefix) => {
-  // We use withRedisClient for safe management of the connection from the pool
-  return redis.withRedisClient(async (redisClient) => {
-    logger.info(`Scanning for cache keys starting with "${prefix}"`);
-    const scanStream = redisClient.scanStream({
-      match: `${prefix}*`, // Search pattern
-      count: 100, // Number of keys to retrieve in one iteration (optimization)
+  logger.info(`Clearing cache keys starting with "${prefix}"`);
+  
+  try {
+    // Get all matching keys using the Redis pool
+    const rows = await withRedisClient(client => client.keys(`${prefix}*`));
+    
+    // Delete each key using the Redis pool
+    await asyncEachPromise(rows, async (row) => {
+      await withRedisClient(client => client.del(row));
     });
-
-    const keysToDelete = [];
-    // Iterate asynchronously through the stream of keys returned by SCAN
-    for await (const keysChunk of scanStream) {
-      if (keysChunk.length > 0) {
-        keysToDelete.push(...keysChunk);
-      }
-    }
-
-    if (keysToDelete.length === 0) {
-      logger.info(`No keys found with prefix "${prefix}" to delete.`);
-      return 0; // Return 0 if no keys are found
-    }
-
-    logger.info(`Found ${keysToDelete.length} keys with prefix "${prefix}". Preparing to delete...`);
-
-    // We use Pipelining to group all DEL commands into one network request
-    const pipeline = redisClient.pipeline();
-    keysToDelete.forEach((key) => {
-      pipeline.del(key); // Add DEL command for each key to the pipeline
-    });
-
-    // Execute the pipeline
-    // The result is an array where each element corresponds to the result of the corresponding command in the pipeline.
-    // For DEL, the result is the count of deleted keys (1 if the key existed, 0 if it didn't).
-    const results = await pipeline.exec();
-
-    // Count how many DEL commands returned 1 (successful deletion)
-    // results is an array of arrays [[err, result], [err, result], ...]
-    const deletedCount = results.reduce((count, [err, result]) => {
-      // Count only successful operations (err is null) and where result is 1
-      return err === null && result === 1 ? count + 1 : count;
-    }, 0);
-
-    logger.info(`Successfully deleted ${deletedCount} keys with prefix "${prefix}".`);
-    return deletedCount; // Return the actual count of deleted keys
-  });
+    
+    return { total: rows.length };
+  } catch (error) {
+    logger.error(`Error clearing cache keys: ${error.message}`, error);
+    throw error;
+  }
 };
 
 /**
- * Main function of the script.
- * Determines the prefix and calls clearPrefix.
- * Handles the result and exit code of the process.
+ * Clear aggregation cache for a specific organization or all organizations
+ * @param {Object} options - Options object
+ * @param {string} [options.orgId] - Optional organization ID to limit clearing
+ * @param {boolean} [options.exitProcess=true] - Whether to exit the process when done
+ * @returns {Promise<{total: number}>} - Result with total keys deleted
  */
-export default async function (options) {
-  const orgId = options.orgId || false;
+export default async function clearAggregationCache(options = {}) {
+  const { orgId, exitProcess = true } = options;
+  
   let aggregationPrefix;
   if (orgId) {
-    aggregationPrefix = cachePrefix(`${orgId}-AGGREGATION-`); // Removed '*' from here, clearPrefix adds it
+    aggregationPrefix = cachePrefix(`${orgId}-AGGREGATION-*`);
   } else {
-    aggregationPrefix = cachePrefix('*-AGGREGATION-'); // Removed '*' from here
+    aggregationPrefix = cachePrefix('*-AGGREGATION-*');
   }
-
+  
   try {
-    const deletedCount = await clearPrefix(aggregationPrefix);
-    logger.info(`Cache clearing process finished. Total keys deleted: ${deletedCount}`);
-    process.exit(0); // Successful exit
+    const result = await clearPrefix(aggregationPrefix);
+    logger.info(`Cleared ${result.total} keys`);
+    
+    if (exitProcess) {
+      process.exit();
+    }
+    
+    return result;
   } catch (error) {
-    logger.error(`Error during cache clearing process for prefix "${aggregationPrefix}":`, error);
-    process.exit(1); // Exit with error
+    logger.error('Failed to clear aggregation cache', error);
+    if (exitProcess) {
+      process.exit(1);
+    }
+    throw error;
   }
 }

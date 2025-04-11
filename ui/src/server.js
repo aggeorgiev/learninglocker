@@ -71,13 +71,19 @@ proxy.on('error', (error, req, res) => {
   if (error.code !== 'ECONNRESET') {
     logger.error('proxy error', error);
   }
-  if (!res.headersSent && res.writeHead) {
-    logger.debug('proxy res.writeHead', res.writeHead);
-    res.writeHead(500, { 'content-type': 'application/json' });
+  
+  // Check if res exists and is valid
+  if (res && !res.headersSent && typeof res.writeHead === 'function') {
+    try {
+      res.writeHead(500, { 'content-type': 'application/json' });
+      const json = { error: 'proxy_error', reason: error.message };
+      res.end(JSON.stringify(json));
+    } catch (err) {
+      logger.error('Error sending proxy error response', err);
+    }
+  } else {
+    logger.debug('Cannot send headers after they are sent to the client');
   }
-
-  const json = { error: 'proxy_error', reason: error.message };
-  res.end(JSON.stringify(json));
 });
 
 app.use('/dashboards/:dashboardId/:shareableId', renderDashboard);

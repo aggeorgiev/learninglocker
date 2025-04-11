@@ -1,172 +1,100 @@
+import async from 'async';
 import logger from 'lib/logger';
 import Statement from 'lib/models/statement';
 import statementHandler from 'worker/handlers/statement/statementHandler';
-import * as redis from 'lib/connections/redis'; // Import our redis module
+import { getOptions, withRedisClient } from 'lib/connections/redis';
+import Redis from 'ioredis';
 import cachePrefix from 'lib/helpers/cachePrefix';
-// Note: The 'async' library is no longer needed
 
-const redisOpts = redis.getOptions(); // Get options once
-
-/**
- * Main function to start the worker that listens for Redis Pub/Sub
- * and processes tasks from Redis List.
- */
 export default async () => {
-  let subClient = null; // The subscription client must live longer
-
-  try {
-    // Create the subscription client manually using acquire from the pool
-    // We must release it manually when stopping (in SIGTERM/SIGINT)
-    subClient = await redis.createClient(); // createClient uses pool.acquire()
-    if (!subClient) {
-        throw new Error('Failed to acquire Redis client for subscription');
-    }
-
-    const subKey = cachePrefix('statement.notify');
-    logger.debug('Using redis options:', redisOpts);
-    logger.info(`Subscribing to '${subKey}'`);
-
-    let currentlyWorking = false; // Local flag for the process
-
+  const redisOpts = getOptions();
+  const subKey = cachePrefix('statement.notify'); // subscribe channel is not prefixed by bull, so must manually do this!
+  const pubKey = cachePrefix('statement.new');
+  
+  logger.debug('Using redis options:', redisOpts);
+  logger.info(`Subscribing to '${subKey}' and will rpop on key '${pubKey}'`);
+  
+  let currentlyWorking = false;
+  
+  // Create dedicated clients for pub/sub that won't be returned to the pool
+  // since subscription clients need to maintain their connection
+  const subClient = await withRedisClient(async (client) => {
+    // Create a new dedicated client with the same configuration
+    const options = getOptions();
+    const subClient = new Redis(options);
+    
+    // Set up error handling
+    subClient.on('error', (err) => {
+      logger.error('Redis subscription client error', err);
+      // Attempt to reconnect
+      setTimeout(() => {
+        logger.info('Attempting to reconnect subscription client...');
+        try {
+          subClient.subscribe(subKey);
+        } catch (e) {
+          logger.error('Failed to reconnect subscription client', e);
+        }
+      }, 5000);
+    });
+    
     subClient.on('message', async (channel) => {
-      logger.debug(`Message received on channel '${channel}'`);
-
-      // Check the local flag
-      if (currentlyWorking) {
-        logger.debug('Already working, skipping message processing trigger.');
-        return;
-      }
-
-      currentlyWorking = true;
-      logger.info('Starting processing of statement queue...');
-
-      try {
-        // Use withRedisClient for the client that will do RPOP
-        // It is taken and released for each processing series
-        await redis.withRedisClient(async (pubClient) => {
-          const pubKey = cachePrefix('statement.new');
-          logger.info(`Processing items from list '${pubKey}'`);
-          let payload = null;
-
-          // Use while loop with await instead of async.doUntil
-          // eslint-disable-next-line no-constant-condition
-          while (true) {
+      logger.debug(`Message on channel '${channel}'`);
+      if (!currentlyWorking) {
+        currentlyWorking = true;
+        let latestResult = null;
+        
+        // while there are payloads left in the work queue, process them
+        async.doUntil(
+          async (cb) => {
             try {
-              payload = await pubClient.rpop(pubKey); // Wait for rpop
-
-              if (payload === null) {
-                // The list is empty, stop the cycle
-                logger.info(`List '${pubKey}' is empty. Stopping processing.`);
-                break;
-              }
-
-              logger.debug(`Popped from '${pubKey}':`, payload);
-              let parsedPayload;
-              try {
-                  parsedPayload = JSON.parse(payload);
-                  if (!parsedPayload || !parsedPayload.statementId) {
-                      logger.error(`Invalid payload format popped from ${pubKey}: ${payload}`);
-                      continue; // Proceed to the next element
+              // Use the pool for each RPOP operation
+              await withRedisClient(async (pubClient) => {
+                const payload = await pubClient.rpop(pubKey);
+                latestResult = payload;
+                
+                if (payload) {
+                  logger.debug(`Popped '${pubKey}':`, payload);
+                  const { statementId } = JSON.parse(payload);
+                  
+                  // Find the statement and process it
+                  const statement = await Statement.findOne({ 'statement.id': statementId });
+                  if (statement) {
+                    statementHandler({ statementId: statement._id });
+                  } else {
+                    logger.warn(`Statement not found for ID: ${statementId}`);
                   }
-              } catch (parseError) {
-                  logger.error(`Failed to parse JSON payload from ${pubKey}: ${payload}`, parseError);
-                  continue; // Proceed to the next element
-              }
-
-
-              try {
-                // Get statement from MongoDB
-                const statement = await Statement.findOne({ 'statement.id': parsedPayload.statementId }).lean(); // Use lean for better performance
-
-                if (!statement) {
-                  logger.warn(`Statement with statement.id ${parsedPayload.statementId} not found in DB.`);
-                  continue; // Proceed to the next element
                 }
-
-                // Call statementHandler - still fire-and-forget, but with try/catch
-                try {
-                  // Do not await if we do not want to block the processing of the list,
-                  // but we must catch the errors from the handler itself
-                  statementHandler({ statementId: statement._id });
-                  logger.debug(`Dispatched statement ${statement._id} to statementHandler.`);
-                } catch (handlerError) {
-                  logger.error(`Error occurred within statementHandler for statement ${statement._id}:`, handlerError);
-                  // Handler error should not stop the entire cycle
-                }
-
-              } catch (dbError) {
-                logger.error(`Error finding statement with statement.id ${parsedPayload.statementId}:`, dbError);
-                // If there is a DB error, we may want to stop or try again later
-                // For now, log and proceed with the next element
-                continue;
-              }
-
-            } catch (rpopError) {
-              logger.error('Error during Redis RPOP operation:', rpopError);
-              // If RPOP gave an error, probably there is a connection problem, stop the cycle
-              break;
+              });
+              cb();
+            } catch (err) {
+              logger.error('ERROR PROCESSING REDIS MESSAGE', err);
+              cb(err);
             }
-          } // end of while loop
-        }); // end of withRedisClient for pubClient
-      } catch (processingError) {
-        // Error during getting/releasing pubClient or other unexpected error
-        logger.error('Error during statement queue processing cycle:', processingError);
-      } finally {
-        // Regardless of whether there was an error or the cycle completed normally,
-        // release the local flag
-        currentlyWorking = false;
-        logger.info('Finished processing cycle for statement queue.');
+          },
+          () => !latestResult,
+          () => {
+            currentlyWorking = false;
+          }
+        );
       }
-    }); // end of subClient.on('message')
-
-    // Subscribe as SUBSCRIBE after we have set up 'message' handler
+    });
+    
+    // Subscribe to the channel
     await subClient.subscribe(subKey);
-    logger.info(`Successfully subscribed to '${subKey}'`);
-
-  } catch (err) {
-    logger.error('Error setting up Redis subscription worker:', err);
-    // If we have subClient, try to release it
-    if (subClient && typeof subClient.quit === 'function') {
+    
+    return subClient;
+  });
+  
+  // Return a function to clean up resources if needed
+  return {
+    close: async () => {
       try {
-        await redis.releaseClient(subClient); // Use releaseClient from the pool
-      } catch (releaseErr) {
-        logger.error('Error releasing subscription client after setup failure:', releaseErr);
-      }
-    }
-    // Pass the error forward so the process can fail at startup if needed
-    throw err;
-  }
-
-  // Graceful shutdown function
-  const shutdown = async () => {
-    logger.info('Shutting down Redis subscription worker...');
-    if (subClient) {
-      try {
-        // Stop the subscription and release the client
-        await subClient.unsubscribe();
-        await subClient.quit(); // ioredis recommends quit after unsubscribe
-        // Although quit may remove it from the pool via 'error' event,
-        // explicit release is safer for our custom pool
-        await redis.releaseClient(subClient);
-        logger.info('Subscription client unsubscribed and released.');
+        if (subClient) {
+          await subClient.quit();
+        }
       } catch (err) {
-        logger.error('Error during subscription client shutdown:', err);
+        logger.error('Error closing Redis subscription client', err);
       }
-    }
-    try {
-      // Close the entire pool
-      await redis.closePool();
-      logger.info('Redis pool closed.');
-      process.exit(0);
-    } catch (err) {
-      logger.error('Error closing Redis pool during shutdown:', err);
-      process.exit(1);
     }
   };
-
-  // Clean up on process exit
-  process.on('SIGTERM', shutdown);
-  process.on('SIGINT', shutdown);
-
-  logger.info('Redis subscription worker started successfully.');
 };
