@@ -140,12 +140,10 @@ class HeatmapChart extends Component {
     
     const value = payload.count;
     const backgroundColor = this.getHeatmapColor(value, minValue, maxValue);
-    
-    const availableHeight = chartHeight - 60;
-    const availableWidth = chartWidth - 150;
 
-	
-    
+    const availableHeight = chartHeight - 60;
+    const availableWidth = chartWidth;
+
     const rowHeight = availableHeight / totalRows;
     const height = rowHeight;
     const width = (availableWidth / totalColumns);
@@ -354,7 +352,7 @@ class HeatmapChart extends Component {
             ticks={uniqueModels}
             domain={uniqueModels}
             axisLine={false}
-            width={150}
+	    hide={true}
           />
           <Tooltip content={this.CustomTooltip} />
           <Scatter
@@ -447,3 +445,5 @@ class HeatmapChart extends Component {
 }
 
 export default enhance(HeatmapChart);
+
+
