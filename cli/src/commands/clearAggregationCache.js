@@ -1,5 +1,5 @@
 import logger from 'lib/logger';
-import { withRedisClient } from 'lib/connections/redis';
+import { withRedisClient, closePool } from 'lib/connections/redis';
 import cachePrefix from 'lib/helpers/cachePrefix';
 import async from 'async';
 import { promisify } from 'util';
@@ -53,7 +53,8 @@ export default async function clearAggregationCache(options = {}) {
     logger.info(`Cleared ${result.total} keys`);
     
     if (exitProcess) {
-      process.exit();
+      await closePool();
+      process.exit(0);
     }
     
     return result;
